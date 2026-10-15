@@ -1,0 +1,196 @@
+"""
+test_epcp.py - Comprehensive Automated Test Suite for EPCP & Database Concurrency
+Docket: IDF-GGL-2026-AGENT-DEADLOCK-EPCP
+Author: Aniket Agrawal (aniketagrawal@google.com)
+Assignee: Google LLC
+
+Zero mocks. Tests real OS threads, real SQLite database transactions,
+real deadlock detection under S2PL, and real deadlock prevention under EPCP.
+"""
+
+import unittest
+import threading
+import time
+from epcp_types import LockMode, AgentEpistemicState
+from database import ConcurrentDatabaseEngine
+from baseline_s2pl import Strict2PLManager, DeadlockException
+from epcp_engine import EPCPEngine
+
+
+class TestEPCPConcurrency(unittest.TestCase):
+
+    def setUp(self):
+        self.db = ConcurrentDatabaseEngine()
+        self.db.reset_and_seed(num_accounts=10, num_items=10)
+
+    def tearDown(self):
+        self.db.close()
+
+    def test_01_epistemic_priority_calculation(self):
+        """Verify mathematical formulation of dynamic epistemic priority Pi_i(t)."""
+        agent_low = AgentEpistemicState(
+            agent_id="agent_low",
+            task_depth=0,
+            accumulated_cost_omega=0.0,
+            epistemic_entropy_h=0.8
+        )
+        agent_high = AgentEpistemicState(
+            agent_id="agent_high",
+            task_depth=4,
+            accumulated_cost_omega=500.0,
+            epistemic_entropy_h=0.1
+        )
+        p_low = agent_low.compute_epistemic_priority()
+        p_high = agent_high.compute_epistemic_priority()
+
+        self.assertGreater(p_high, p_low)
+        self.assertAlmostEqual(p_low, 1.0 + 0 + 0 + 2.0 * (1.0 - 0.8), places=3)
+
+    def test_02_database_crud_acid(self):
+        """Verify real SQLite database engine handles transactional balance updates."""
+        bal = self.db.execute_read_account("ACC_001")
+        self.assertEqual(bal, 10000.0)
+
+        ok = self.db.execute_update_account("ACC_001", -250.0)
+        self.assertTrue(ok)
+        self.db.commit()
+
+        bal_new = self.db.execute_read_account("ACC_001")
+        self.assertEqual(bal_new, 9750.0)
+
+    def test_03_s2pl_mutual_exclusion(self):
+        """Verify standard S2PL enforces mutual exclusion on exclusive write locks."""
+        mgr = Strict2PLManager()
+        ok1 = mgr.acquire_lock("agent_1", "res_A", LockMode.EXCLUSIVE_WRITE)
+        self.assertTrue(ok1)
+
+        # Thread 2 attempting to lock res_A should timeout or block
+        start = time.time()
+        ok2 = mgr.acquire_lock("agent_2", "res_A", LockMode.EXCLUSIVE_WRITE, timeout_sec=0.1)
+        self.assertFalse(ok2)
+        mgr.release_all_locks("agent_1")
+
+    def test_04_s2pl_deadlock_detection(self):
+        """
+        Verify that under S2PL, cross-resource locking (A->B and B->A)
+        produces an actual Wait-For-Graph cycle and raises DeadlockException.
+        """
+        mgr = Strict2PLManager()
+        deadlock_caught = []
+
+        barrier = threading.Barrier(2)
+
+        def worker_1():
+            try:
+                mgr.acquire_lock("A1", "res_X", LockMode.EXCLUSIVE_WRITE)
+                barrier.wait()  # Both hold 1 resource
+                time.sleep(0.05)
+                mgr.acquire_lock("A1", "res_Y", LockMode.EXCLUSIVE_WRITE, timeout_sec=1.0)
+            except DeadlockException as e:
+                deadlock_caught.append(("A1", e.cycle))
+            finally:
+                mgr.release_all_locks("A1")
+
+        def worker_2():
+            try:
+                mgr.acquire_lock("A2", "res_Y", LockMode.EXCLUSIVE_WRITE)
+                barrier.wait()  # Both hold 1 resource
+                time.sleep(0.05)
+                mgr.acquire_lock("A2", "res_X", LockMode.EXCLUSIVE_WRITE, timeout_sec=1.0)
+            except DeadlockException as e:
+                deadlock_caught.append(("A2", e.cycle))
+            finally:
+                mgr.release_all_locks("A2")
+
+        t1 = threading.Thread(target=worker_1)
+        t2 = threading.Thread(target=worker_2)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        # At least one worker MUST have caught a real deadlock cycle
+        self.assertGreater(len(deadlock_caught), 0)
+        self.assertGreater(mgr.deadlocks_detected_count, 0)
+
+    def test_05_epcp_deadlock_prevention(self):
+        """
+        Verify that under EPCP, the identical cross-resource access pattern
+        executes to 100% completion with ZERO deadlocks.
+        """
+        epcp = EPCPEngine()
+        a1_state = AgentEpistemicState(agent_id="A1", task_depth=1, accumulated_cost_omega=10.0, epistemic_entropy_h=0.5)
+        a2_state = AgentEpistemicState(agent_id="A2", task_depth=2, accumulated_cost_omega=20.0, epistemic_entropy_h=0.2)
+        epcp.register_agent(a1_state)
+        epcp.register_agent(a2_state)
+
+        epcp.register_resource("res_X", "Accounts", "res_X", {"A1", "A2"})
+        epcp.register_resource("res_Y", "Accounts", "res_Y", {"A1", "A2"})
+
+        success = []
+        barrier = threading.Barrier(2)
+
+        def worker_1():
+            barrier.wait()
+            ok_x = epcp.acquire_lock("A1", "res_X", LockMode.EXCLUSIVE_WRITE, timeout_sec=2.0)
+            if ok_x:
+                time.sleep(0.02)
+                ok_y = epcp.acquire_lock("A1", "res_Y", LockMode.EXCLUSIVE_WRITE, timeout_sec=2.0)
+                if ok_y:
+                    success.append("A1")
+                    epcp.release_all_locks("A1")
+
+        def worker_2():
+            barrier.wait()
+            ok_y = epcp.acquire_lock("A2", "res_Y", LockMode.EXCLUSIVE_WRITE, timeout_sec=2.0)
+            if ok_y:
+                time.sleep(0.02)
+                ok_x = epcp.acquire_lock("A2", "res_X", LockMode.EXCLUSIVE_WRITE, timeout_sec=2.0)
+                if ok_x:
+                    success.append("A2")
+                    epcp.release_all_locks("A2")
+
+        t1 = threading.Thread(target=worker_1)
+        t2 = threading.Thread(target=worker_2)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        # Both workers should complete successfully without deadlocks!
+        self.assertEqual(len(success), 2)
+        self.assertIn("A1", success)
+        self.assertIn("A2", success)
+
+    def test_06_epcp_priority_inheritance(self):
+        """Verify priority inheritance dynamically elevates priority of blocking low-priority agent."""
+        epcp = EPCPEngine()
+        low = AgentEpistemicState(agent_id="low", task_depth=0, accumulated_cost_omega=0.0, epistemic_entropy_h=0.9)
+        high = AgentEpistemicState(agent_id="high", task_depth=5, accumulated_cost_omega=100.0, epistemic_entropy_h=0.1)
+        epcp.register_agent(low)
+        epcp.register_agent(high)
+
+        epcp.register_resource("shared_R", "Accounts", "shared_R", {"low", "high"})
+
+        # Low acquires shared_R first
+        epcp.acquire_lock("low", "shared_R", LockMode.EXCLUSIVE_WRITE)
+        self.assertEqual(epcp._active_priorities["low"], low.compute_epistemic_priority())
+
+        # High attempts to acquire in separate thread, triggering inheritance
+        def high_requester():
+            epcp.acquire_lock("high", "shared_R", LockMode.EXCLUSIVE_WRITE, timeout_sec=0.5)
+
+        t = threading.Thread(target=high_requester)
+        t.start()
+        time.sleep(0.05)
+
+        # Low's active priority must be elevated to high's priority!
+        self.assertGreaterEqual(epcp._active_priorities["low"], high.compute_epistemic_priority())
+        self.assertGreater(epcp.priority_inheritance_count, 0)
+
+        epcp.release_all_locks("low")
+        t.join()
+
+
+if __name__ == "__main__":
+    unittest.main()
