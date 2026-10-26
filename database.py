@@ -6,7 +6,8 @@ Assignee: Google LLC
 
 Zero mocks. Manages persistent SQLite transactional storage on macOS APFS.
 Loads 10,000 enterprise accounts and 5,000 inventory items.
-Operates with Write-Ahead Logging (WAL) and multi-threaded connection pooling.
+Operates with Write-Ahead Logging (WAL), shared-memory committed-state cache for
+in-critical-section domain pre-checks (Biz-Rule Reject), and atomic batch commit flush.
 """
 
 from __future__ import annotations
@@ -25,11 +26,19 @@ class EnterpriseDatabaseEngine:
     """
     Physical multi-threaded SQLite database engine managing enterprise transactional state
     under heavy multi-agent concurrency.
+    Maintains an in-memory committed row-state mirror synchronized with SQLite WAL commits
+    so lock-holding workers observe 100% up-to-date committed balances/stock without
+    prematurely acquiring SQLite's file-level single-writer lock during multi-step LLM inference.
     """
 
     def __init__(self, db_path: str = DB_PATH):
         self.db_path = db_path
         self._local = threading.local()
+        self._state_lock = threading.RLock()
+        # In-memory mirror of committed state: acc_id -> (balance, credit_limit, version)
+        self._accounts_cache: Dict[str, List[ float ]] = {}
+        # item_id -> [stock_count, reserved_count, version]
+        self._inventory_cache: Dict[str, List[int]] = {}
         self._init_schema()
 
     def _get_connection(self) -> sqlite3.Connection:
@@ -92,37 +101,89 @@ class EnterpriseDatabaseEngine:
             """)
         conn.close()
 
-    def seed_from_csv(self):
-        """Loads the authentic enterprise dataset into SQLite tables."""
+    def seed_from_csv(self, scale_factor: float = 1.0):
+        """
+        Loads the authentic enterprise dataset into SQLite tables.
+        When scale_factor > 1.0 (e.g., 100.0 for the Zero-Depletion Control),
+        initial account balances and inventory stock counts are scaled accordingly
+        so zero Biz-Rule Rejects occur.
+        """
         conn = sqlite3.connect(self.db_path, timeout=60.0)
-        with conn:
+        with self._state_lock, conn:
             conn.execute("DELETE FROM Accounts;")
             conn.execute("DELETE FROM Inventory;")
             conn.execute("DELETE FROM Settlements;")
             conn.execute("DELETE FROM AuditLog;")
+            self._accounts_cache.clear()
+            self._inventory_cache.clear()
 
-            # Load accounts
             if os.path.exists(ACCOUNTS_CSV):
                 with open(ACCOUNTS_CSV, "r", encoding="utf-8") as f:
                     reader = csv.reader(f)
-                    next(reader)  # Header
+                    next(reader)
+                    acc_rows = []
+                    for r in reader:
+                        bal = float(r[1]) * scale_factor
+                        cred = float(r[2]) * scale_factor
+                        ver = int(r[4])
+                        acc_rows.append((r[0], bal, cred, r[3], ver, r[5]))
+                        self._accounts_cache[r[0]] = [bal, cred, float(ver)]
                     conn.executemany(
                         "INSERT INTO Accounts VALUES (?, ?, ?, ?, ?, ?);",
-                        reader
+                        acc_rows
                     )
 
-            # Load inventory
             if os.path.exists(INVENTORY_CSV):
                 with open(INVENTORY_CSV, "r", encoding="utf-8") as f:
                     reader = csv.reader(f)
-                    next(reader)  # Header
+                    next(reader)
+                    inv_rows = []
+                    for r in reader:
+                        stk = int(round(int(r[1]) * scale_factor))
+                        res_c = int(r[2])
+                        ver = int(r[5])
+                        inv_rows.append((r[0], stk, res_c, float(r[3]), r[4], ver))
+                        self._inventory_cache[r[0]] = [stk, res_c, ver]
                     conn.executemany(
                         "INSERT INTO Inventory VALUES (?, ?, ?, ?, ?, ?);",
-                        reader
+                        inv_rows
                     )
 
         conn.close()
-        print(f"[OK] Database seeded from CSV into {self.db_path}")
+
+    def check_step1_biz_rule_sufficiency(
+        self,
+        from_acc: str,
+        item_id: str,
+        amount: float,
+        item_count: int,
+        check_account: bool = True,
+        check_item: bool = False,
+    ) -> bool:
+        """
+        Sub-microsecond domain pre-check (Biz-Rule Reject) executed immediately upon
+        acquiring the Step-1 lock prior to invoking LLM inference Infer(phi).
+        Returns True if sufficient funds/stock exist, False if depleted.
+        """
+        with self._state_lock:
+            if check_account:
+                acc = self._accounts_cache.get(from_acc)
+                if acc is not None and (acc[0] + acc[1]) < amount:
+                    return False
+            if check_item:
+                inv = self._inventory_cache.get(item_id)
+                if inv is not None and inv[0] < item_count:
+                    return False
+        return True
+
+    def get_row_version(self, entity_key: str) -> int:
+        """Returns the current committed version integer for an Account or Inventory row."""
+        with self._state_lock:
+            if entity_key in self._accounts_cache:
+                return int(self._accounts_cache[entity_key][2])
+            if entity_key in self._inventory_cache:
+                return int(self._inventory_cache[entity_key][2])
+        return 1
 
     def execute_multi_resource_transaction(
         self,
@@ -135,12 +196,12 @@ class EnterpriseDatabaseEngine:
         item_count: int
     ) -> bool:
         """
-        Executes a real multi-table ACID transaction across Accounts and Inventory.
+        Executes a real multi-table ACID transaction across Accounts and Inventory
+        at the Commit boundary while holding exclusive locks on all target rows.
         """
         conn = self._get_connection()
         cur = conn.cursor()
         try:
-            # 1. Check & Debit from_acc
             cur.execute("SELECT Balance, CreditLimit, AccountVersion FROM Accounts WHERE AccountId = ?;", (from_acc,))
             row_from = cur.fetchone()
             if not row_from or (row_from[0] + row_from[1]) < amount:
@@ -152,37 +213,33 @@ class EnterpriseDatabaseEngine:
                 (amount, from_acc)
             )
 
-            # 2. Credit to_acc
-            cur.execute("SELECT AccountVersion FROM Accounts WHERE AccountId = ?;", (to_acc,))
+            cur.execute("SELECT Balance, CreditLimit, AccountVersion FROM Accounts WHERE AccountId = ?;", (to_acc,))
             row_to = cur.fetchone()
             if not row_to:
                 conn.rollback()
                 return False
-            v_to = row_to[0]
+            v_to = row_to[2]
             cur.execute(
                 "UPDATE Accounts SET Balance = Balance + ?, AccountVersion = AccountVersion + 1 WHERE AccountId = ?;",
                 (amount, to_acc)
             )
 
-            # 3. Reserve Inventory
-            cur.execute("SELECT StockCount, ItemVersion FROM Inventory WHERE ItemId = ?;", (item_id,))
+            cur.execute("SELECT StockCount, ReservedCount, ItemVersion FROM Inventory WHERE ItemId = ?;", (item_id,))
             row_item = cur.fetchone()
             if not row_item or row_item[0] < item_count:
                 conn.rollback()
                 return False
-            v_item = row_item[1]
+            v_item = row_item[2]
             cur.execute(
                 "UPDATE Inventory SET StockCount = StockCount - ?, ReservedCount = ReservedCount + ?, ItemVersion = ItemVersion + 1 WHERE ItemId = ?;",
                 (item_count, item_count, item_id)
             )
 
-            # 4. Insert Settlement Record
             cur.execute(
                 "INSERT INTO Settlements (TxId, FromAccountId, ToAccountId, ItemId, Amount, ItemCount, Status) VALUES (?, ?, ?, ?, ?, ?, 'COMMITTED');",
                 (tx_id, from_acc, to_acc, item_id, amount, item_count)
             )
 
-            # 5. Insert Audit Log Entries
             cur.execute(
                 "INSERT INTO AuditLog (TxId, AgentId, ActionType, EntityKey, PreviousVersion, NewVersion) VALUES (?, ?, 'DEBIT', ?, ?, ?);",
                 (tx_id, agent_id, from_acc, v_from, v_from + 1)
@@ -193,6 +250,10 @@ class EnterpriseDatabaseEngine:
             )
 
             conn.commit()
+            with self._state_lock:
+                self._accounts_cache[from_acc] = [row_from[0] - amount, row_from[1], float(v_from + 1)]
+                self._accounts_cache[to_acc] = [row_to[0] + amount, row_to[1], float(v_to + 1)]
+                self._inventory_cache[item_id] = [row_item[0] - item_count, row_item[1] + item_count, v_item + 1]
             return True
 
         except sqlite3.OperationalError:
@@ -225,3 +286,51 @@ class EnterpriseDatabaseEngine:
         if hasattr(self._local, "conn") and self._local.conn is not None:
             self._local.conn.close()
             self._local.conn = None
+
+
+class ConcurrentDatabaseEngine(EnterpriseDatabaseEngine):
+    """
+    Lightweight database engine wrapper supporting unit-test seeding and direct CRUD helpers
+    used in test_epcp.py alongside EnterpriseDatabaseEngine.
+    """
+
+    def __init__(self, db_path: Optional[str] = None):
+        unit_db = db_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "epcp_unit_test.db")
+        super().__init__(db_path=unit_db)
+
+    def reset_and_seed(self, num_accounts: int = 10, num_items: int = 10):
+        conn = self._get_connection()
+        with conn:
+            conn.execute("DELETE FROM Accounts;")
+            conn.execute("DELETE FROM Inventory;")
+            conn.execute("DELETE FROM Settlements;")
+            conn.execute("DELETE FROM AuditLog;")
+            for i in range(1, num_accounts + 1):
+                acc_id = f"ACC_{i:03d}"
+                conn.execute(
+                    "INSERT INTO Accounts VALUES (?, ?, ?, ?, ?, ?);",
+                    (acc_id, 10000.0, 2000.0, "GOLD", 1, "2026-01-01T00:00:00Z"),
+                )
+            for j in range(1, num_items + 1):
+                item_id = f"ITEM_{j:03d}"
+                conn.execute(
+                    "INSERT INTO Inventory VALUES (?, ?, ?, ?, ?, ?);",
+                    (item_id, 500, 0, 50.0, "ELECTRONICS", 1),
+                )
+
+    def execute_read_account(self, account_id: str) -> Optional[float]:
+        cur = self._get_connection().cursor()
+        cur.execute("SELECT Balance FROM Accounts WHERE AccountId = ?;", (account_id,))
+        row = cur.fetchone()
+        return float(row[0]) if row else None
+
+    def execute_update_account(self, account_id: str, delta: float) -> bool:
+        cur = self._get_connection().cursor()
+        cur.execute(
+            "UPDATE Accounts SET Balance = Balance + ?, AccountVersion = AccountVersion + 1 WHERE AccountId = ?;",
+            (delta, account_id),
+        )
+        return cur.rowcount > 0
+
+    def commit(self):
+        self._get_connection().commit()

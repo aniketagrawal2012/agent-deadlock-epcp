@@ -1,0 +1,28 @@
+{
+  "S2PL": {
+    "protocol": "S2PL",
+    "concurrency": 10,
+    "total_tx": 50,
+    "committed": 40,
+    "deadlocks": 2,
+    "abort_rate_pct": 4.0,
+    "wasted_tokens": 96,
+    "total_tokens": 3936,
+    "goodput_tps": 1.79,
+    "mean_latency_s": 4.13,
+    "p95_latency_s": 6.88
+  },
+  "EPCP": {
+    "protocol": "EPCP",
+    "concurrency": 10,
+    "total_tx": 50,
+    "committed": 42,
+    "deadlocks": 0,
+    "abort_rate_pct": 0.0,
+    "wasted_tokens": 0,
+    "total_tokens": 4032,
+    "goodput_tps": 2.02,
+    "mean_latency_s": 2.49,
+    "p95_latency_s": 8.0
+  }
+}

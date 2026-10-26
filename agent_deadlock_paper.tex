@@ -10,7 +10,6 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{url}
-\usepackage{microtype}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
@@ -22,24 +21,23 @@
 
 \begin{document}
 
-\title{Self-Stabilizing Deadlock-Free Semantic Resource Arbitration and Epistemic Priority Inheritance for Autonomous Multi-Agent Distributed Database Transactions}
+\title{Autonomous Invariant-Preserving Deadlock-Free Semantic Resource Arbitration and Epistemic Priority Inheritance for Multi-Agent Transactional Databases}
 
 \author{Aniket~Agrawal,~\IEEEmembership{Google Cloud India Private Limited}%
-\IEEEcompsocitemizethanks{\IEEEcompsocthanksitem A. Agrawal is an AI Cloud Engineer at Google Cloud India Private Limited, Bangalore, India (e-mail: aniketagrawal@google.com). Docket: IDF-GGL-2026-AGENT-DEADLOCK-EPCP.}%
-\thanks{Manuscript submitted to Google Patent Committee and IEEE Transactions on Parallel and Distributed Systems (TPDS) / ACM TODS / VLDB 2026.}}
+\IEEEcompsocitemizethanks{\IEEEcompsocthanksitem A. Agrawal is an AI Cloud Engineer at Google Cloud India Private Limited, Bangalore, India (e-mail: aniketagrawal@google.com).}}
 
 \markboth{IEEE Transactions on Parallel and Distributed Systems,~Vol.~37, No.~7,~July~2026}%
-{Agrawal: Self-Stabilizing Deadlock-Free Semantic Resource Arbitration for Multi-Agent Distributed Databases}
+{Agrawal: Deadlock-Free Semantic Resource Arbitration for Multi-Agent Transactional Databases}
 
 \IEEEtitleabstractindextext{%
 \begin{abstract}
-The deployment of autonomous multi-agent swarms operating over shared enterprise transactional databases introduces a fundamental concurrency crisis. Unlike classical database transactions characterized by sub-millisecond compiled SQL queries, autonomous agents exhibit high-latency semantic reasoning phases (500~ms to 5,000~ms) while evaluating domain policies, invoking external tool calls, and executing multi-step LLM prompts within active critical sections. Under standard Strict Two-Phase Locking (S2PL), overlapping multi-resource lock acquisitions generate closed cycles in the system's Wait-For-Graph ($\mathcal{G}_{\text{wait}}$). Under long reasoning latencies and heavy partition access skew, deadlock frequency escalates rapidly, triggering severe transaction aborts. Crucially, in multi-agent swarms, victim transaction aborts induce catastrophic \textit{livelock thrashing}, as aborted agents re-execute identical stochastic planning paths, squandering high-cost inference tokens and saturating lock tables.
+The deployment of autonomous multi-agent swarms operating over shared enterprise transactional databases introduces a fundamental concurrency crisis. Unlike classical database transactions characterized by sub-millisecond compiled SQL queries, autonomous agents exhibit high-latency semantic reasoning phases (250~ms to 2,500~ms per step; 500~ms to 5,000~ms across multi-step workflows) while evaluating state-dependent domain policies, invoking external compliance tools, and executing multi-step LLM prompts within active critical sections. Under standard Strict Two-Phase Locking (S2PL), overlapping multi-resource lock acquisitions generate closed cycles in the system's Wait-For-Graph ($\mathcal{G}_{\text{wait}}$), while timestamp-based prevention (Wait-Die, Wound-Wait) and Optimistic Concurrency Control (OCC) trigger frequent mid-execution or commit-time aborts. Crucially, in multi-agent swarms, transaction aborts induce severe \textit{livelock token thrashing}, as aborted agents re-execute stochastic planning paths and discard hundreds to thousands of already-billed LLM inference tokens.
 
-To resolve this systems bottleneck, we present the \textbf{Epistemic Priority Ceiling Protocol (EPCP)}, a self-stabilizing, provably deadlock-free distributed concurrency control architecture. EPCP establishes a mathematically formalized dynamic priority metric $\Pi_i(t)$ incorporating agent task tree depth, accumulated LLM token investment, and inverse epistemic entropy. By maintaining dynamic resource priority ceilings and enforcing a strict preemptive admission invariant ($\Pi_i^{\text{eff}}(t) > C_{-A_i}^*(t)$), EPCP prevents circular waiting before critical sections are entered. We provide a rigorous inductive proof establishing that $\mathcal{G}_{\text{wait}}$ remains a directed acyclic forest under all thread interleavings. We implemented EPCP natively on macOS Apple Silicon and benchmarked sustained multi-threaded database transactions over an authentic enterprise banking and supply chain schema (10,000 Accounts, 5,000 Inventory Items) under heavy Zipfian access skew ($\theta = 0.85$) with genuine CPU-bound cryptographic HMAC-SHA256 reasoning. The empirical results demonstrate that EPCP achieves a \textbf{0.00\% deadlock abort rate} across all concurrency levels, completely eliminating victim transaction rollbacks while preserving strict serializability and physical ACID integrity.
+To resolve this systems bottleneck within a centralized shared-memory transactional lock coordinator or connection-pool gateway fronting an OLTP engine (such as a single Spanner Paxos group leader's local lock table), we present the \textbf{Epistemic Priority Ceiling Protocol (EPCP)}, an autonomous, invariant-preserving, provably deadlock-free concurrency control architecture. EPCP establishes a monotonically latched dynamic priority metric $\tilde{\Pi}_i(t)$ incorporating agent task tree depth, accumulated LLM token investment with aging, and inverse epistemic entropy, paired with a static upper-envelope preemption level $\Pi_i^{\max}$ over exact 64-bit integer lexicographical priority tuples. By maintaining fine-grained 64-partition intent-footprint priority ceilings and enforcing a guarded preemptive admission invariant ($\Pi_i^{\text{eff}}(t) > C_{-A_i}^*(t; \mathcal{F}(T_i))$), EPCP serializes admission across intersecting dynamic footprints before critical sections are entered while allowing disjoint footprints to execute in parallel without aborting in-flight transactions. We provide a rigorous inductive proof establishing that $\mathcal{G}_{\text{wait}}(t)$ remains a directed acyclic graph (DAG) under all thread interleavings. We implemented EPCP natively on macOS Apple Silicon and benchmarked sustained multi-threaded database transactions over an enterprise banking and supply chain schema (10,000 Accounts, 5,000 Inventory Items) under heavy Zipfian access skew ($\theta = 0.85$) across sub-millisecond cryptographic HMAC-SHA256 stress tests, 500~ms--1,500~ms multi-step LLM reasoning benchmarks, and live Google Cloud Vertex AI \texttt{gemini-2.5-flash} multi-agent runs against S2PL, 2PL-Wait Promote, Wound-Wait, Wait-Die, OCC, Coarse Shard-Scoped C2PL, and Canonical Ordered Locking. Empirical results demonstrate that EPCP achieves a \textbf{0.00\% deadlock and concurrency abort rate} across all regimes, completely eliminating victim transaction rollbacks while preserving strict conflict serializability and physical ACID integrity.
 \end{abstract}
 
 \begin{IEEEkeywords}
-Distributed Databases, Multi-Agent Concurrency Control, Deadlock Elimination, Priority Ceiling Protocol, Epistemic Uncertainty, Cloud Spanner, Transaction Processing.
+Transactional Databases, Multi-Agent Concurrency Control, Deadlock Elimination, Priority Ceiling Protocol, Epistemic Uncertainty, Cloud Spanner, Transaction Processing.
 \end{IEEEkeywords}}
 
 \maketitle
@@ -47,59 +45,64 @@ Distributed Databases, Multi-Agent Concurrency Control, Deadlock Elimination, Pr
 \IEEEpeerreviewmaketitle
 
 \section{Introduction}
-\IEEEPARstart{E}{nterprise} cloud platforms are undergoing a paradigm shift from human-in-the-loop task execution to autonomous multi-agent systems. Built on orchestration frameworks such as Google Agent Development Kit (ADK) and Vertex AI Agent Builder, autonomous agent swarms are delegated end-to-end responsibilities over core enterprise workflows, including supply chain reconciliation, automated loan underwriting, financial clearing, and algorithmic procurement. In these distributed architectures, multiple autonomous agents execute concurrently against shared, globally distributed database engines such as Google Cloud Spanner, BigQuery, and CockroachDB.
+\IEEEPARstart{E}{nterprise} cloud platforms are undergoing a paradigm shift from human-in-the-loop task execution to autonomous multi-agent systems. Built on orchestration frameworks such as Google Agent Development Kit (ADK) and Vertex AI Agent Builder, autonomous agent swarms are delegated end-to-end responsibilities over core enterprise workflows, including supply chain reconciliation, automated loan underwriting, financial clearing, and algorithmic procurement. In these architectures, multiple autonomous agents execute concurrently through a centralized shared-memory transactional lock coordinator or connection-pool gateway fronting shared OLTP database engines such as a single Google Cloud Spanner Paxos group leader~\cite{corbett2013spanner}, AlloyDB/PostgreSQL, or CockroachDB (leaving decentralized cross-leader two-phase commit ceiling synchronization across geo-distributed consensus groups to future work).
 
-\subsection{The Semantic Reasoning Latency Expansion}
-Classical distributed transaction processing was developed under the assumption that transactions are short-lived, pre-compiled SQL queries with execution latencies on the order of 100 microseconds to 5 milliseconds~\cite{gray1992transaction, bernstein1987concurrency}. Under this microsecond regime, locking protocols such as Strict Two-Phase Locking (S2PL) provide serializability with negligible lock contention windows.
+\subsection{The Semantic Reasoning Latency Expansion and Why Locks Span Inference}
+Classical transaction processing was developed under the assumption that transactions are short-lived, pre-compiled SQL queries with execution latencies on the order of 100 microseconds to 5 milliseconds~\cite{gray1992transaction, bernstein1987concurrency}. Under this microsecond regime, locking protocols such as Strict Two-Phase Locking (S2PL)~\cite{eswaran1976notions} provide conflict serializability with negligible lock contention windows.
 
-In autonomous multi-agent architectures, however, transactions are inherently interleaved with \textit{semantic reasoning loops}. When an agent locks a database record (e.g., reserving an inventory quota or freezing an account ledger), it frequently pauses while holding row-level write locks to:
+In autonomous multi-agent architectures, however, transactions are inherently interleaved with \textit{state-dependent semantic reasoning loops}. A natural question is whether holding locks across LLM inference can be avoided altogether via (i) snapshot reads followed by short compare-and-swap (CAS) / Optimistic Concurrency Control (OCC) validation at commit, (ii) simple commutative escrow columns (e.g., \texttt{reserved\_amount}), or (iii) Saga-based non-isolated sub-transactions~\cite{chang2025sagallm}. In regulated enterprise workflows, each of these alternatives breaks down under high contention:
 \begin{enumerate}
-    \item Evaluate multi-turn domain-specific safety and compliance rules via Large Language Model (LLM) inference;
-    \item Query external retrieval-augmented generation (RAG) vector stores;
-    \item Synthesize structured payloads before acquiring dependent locks on settlement or auditing ledgers.
+    \item \textbf{Failure of Snapshot-Read + CAS and Scalar Escrow on Non-Commutative State Mutations:} While simple scalar decrements can use commutative escrow counters, enterprise agent workflows perform \textit{non-commutative, multi-attribute structural mutations}---such as corporate loan covenant restructuring, cross-collateralized margin re-indexing, and serialized lot compliance---where Step 2's multi-turn LLM synthesis, AML polynomial risk scoring, and generated SQL/JSON compliance patch depend nonlinearly on the exact vector of row attributes read in Step 1. When an agent acquires a pessimistic lock on $R_a$, it first runs an immediate sub-microsecond scalar sufficiency pre-filter (\texttt{Biz-Rule Reject}) to fast-exit obviously depleted accounts or out-of-stock SKUs with zero wasted LLM tokens; for funded rows passing this pre-filter, the subsequent $\text{Infer}(\phi)$ phase evaluates the full multi-attribute state of $R_a$. Under snapshot-read + CAS (OCC), if any contending agent modifies $R_a$ during the 500~ms--5,000~ms multi-step reasoning window, the generated compliance patch is invalidated and CAS fails at commit time \textit{after 100\% of the multi-step LLM token budget has already been expended}. Holding a pessimistic lock across $\text{Infer}(\phi)$ protects funded rows from mid-inference invalidation.
+    \item \textbf{Prohibition of Uncommitted State Exposure:} Saga-based agent workflows~\cite{chang2025sagallm} release locks early by committing intermediate sub-transactions and relying on reverse compensating actions upon failure. However, in strict double-entry banking and regulatory clearing, exposing transient intermediate states to concurrent readers violates strict serializability and triggers cascading audit exceptions.
 \end{enumerate}
-Consequently, lock retention durations expand from milliseconds to several seconds (500~ms to 5,000~ms)---a $10^3\times$ to $10^4\times$ duration expansion.
+Consequently, preserving strict ACID isolation without post-hoc validation rollbacks on non-commutative multi-attribute workflows requires holding pessimistic locks across intermediate reasoning phases, expanding lock retention durations from milliseconds to several seconds (500~ms to 5,000~ms)---a $10^3\times$ to $10^4\times$ duration expansion.
 
 \subsection{The Livelock and Token Thrashing Crisis}
-When agents acquire locks in arbitrary orderings (e.g., Agent $A_1$ acquiring Account $\to$ Inventory while Agent $A_2$ acquires Inventory $\to$ Account), Wait-For-Graph ($\mathcal{G}_{\text{wait}}$) cycles form rapidly. Under S2PL, deadlock detection modules identify cycles and forcibly abort a ``victim'' transaction. 
+When agents acquire locks across multiple resources in dynamic orderings (e.g., Agent $A_1$ acquiring Account $\to$ Inventory while Agent $A_2$ acquires Inventory $\to$ Account), Wait-For-Graph ($\mathcal{G}_{\text{wait}}$) cycles form rapidly. Under S2PL, deadlock detection modules identify cycles and forcibly abort a ``victim'' transaction~\cite{gray1992transaction}. Similarly, classical timestamp-ordered deadlock prevention schemes~\cite{rosenkrantz1978system} avoid cycles by aborting transactions whenever timestamp inversions occur: under non-preemptive \textit{Wait-Die}, a younger requester immediately ``dies'' (aborts) upon encountering an older lock holder while an older requester waits; under preemptive \textit{Wound-Wait} (used in Google Cloud Spanner~\cite{corbett2013spanner}), an older requester immediately ``wounds'' (preemptively aborts) a younger lock holder while a younger requester waits.
 
-In traditional relational databases, aborting an in-memory SQL transaction incurs minimal penalty: the transaction is immediately re-executed using cached query plans. In multi-agent swarms, however, aborting an agent transaction results in \textbf{catastrophic livelock thrashing}:
+In traditional relational databases, aborting an in-memory SQL transaction incurs minimal penalty. In multi-agent swarms, however, aborting an in-flight agent transaction---whether via S2PL deadlock victim selection, Wait-Die self-abort, Wound-Wait preemption~\cite{rosenkrantz1978system}, or OCC validation failure---results in \textbf{catastrophic token thrashing}:
 \begin{itemize}
-    \item \textbf{Token & Financial Waste:} An agent rolled back at step 4 of an autonomous workflow loses all accumulated reasoning context, discarding thousands of expensive LLM tokens (e.g., Gemini 1.5 Pro / Flash).
-    \item \textbf{Stochastic Lock Retrying:} Upon restart, the agent re-evaluates prompts, frequently choosing the identical execution path and immediately re-colliding with contending agents.
-    \item \textbf{System Saturation:} Under heavy partition skew, S2PL suffers persistent abort cascades, locking the database in cyclic rollback states.
+    \item \textbf{Token \& Financial Waste:} An agent rolled back mid-workflow loses its in-flight transactional state, discarding hundreds to thousands of already-billed LLM inference tokens (e.g., on Gemini 2.5 Pro / Flash endpoints).
+    \item \textbf{Stochastic Lock Retrying:} Upon restart, the agent re-evaluates prompts against mutated state, frequently re-colliding with contending agents.
+    \item \textbf{System Saturation:} Under heavy partition skew, abort-based concurrency controllers suffer persistent rollback cascades.
 \end{itemize}
 
-\subsection{Contributions}
-In this work, we present the \textbf{Epistemic Priority Ceiling Protocol (EPCP)}, a novel concurrency control architecture specifically engineered for high-latency semantic agent transactions. Our primary contributions are:
-\begin{enumerate}
-    \item \textbf{Dynamic Epistemic Priority Metric ($\Pi_i(t)$):} A formal mathematical formulation coupling task delegation depth ($d_i$), accumulated token expenditure ($\Omega_i$), and inverse epistemic entropy ($1 - \mathcal{H}_i$).
-    \item \textbf{Dynamic Resource Priority Ceilings ($C(R_j)$):} A self-stabilizing lock allocation invariant where an agent is granted a free resource if and only if its effective priority strictly dominates the system-wide ceiling of resources currently held by all other agents.
-    \item \textbf{Provable Deadlock Immunity (Theorem 1):} An inductive mathematical proof demonstrating that the system Wait-For-Graph remains an acyclic forest at all times, guaranteeing a 0.00\% deadlock abort rate without needing victim selection.
-    \item \textbf{Transitive Priority Inheritance (Theorem 2):} A dynamic inheritance protocol guaranteeing that priority inversions are bounded by at most the duration of a single critical section.
-    \item \textbf{Strict Serializability & Livelock Freedom (Theorem 3):} A formal proof establishing conflict serializability and finite-time completion.
-    \item \textbf{Empirical Physical Validation:} Zero-mock benchmarks executing thousands of transactions over an authentic enterprise banking and supply chain schema (10,000 Accounts, 5,000 Inventory Items) under Zipfian access skew ($\theta = 0.85$) with CPU-bound cryptographic HMAC-SHA256 reasoning, verifying that EPCP achieves **0.00\% deadlocks**.
-\end{enumerate}
+Real-time concurrency control offers foundational mechanisms for deadlock-free execution without victim aborts. Priority Inheritance and Priority Ceiling Protocols (PCP) were pioneered by Sha, Rajkumar, and Lehoczky~\cite{sha1990priority} for uniprocessor tasks with static priorities, and extended to dynamic-priority real-time tasks (such as Earliest Deadline First) by Chen and Lin's Dynamic Priority Ceiling Protocol~\cite{chen1990dynamic} and Baker's Stack Resource Policy (SRP)~\cite{baker1991stack}, which decouple static resource preemption levels from dynamic task urgency. In real-time databases, Abbott and Garcia-Molina~\cite{abbott1992scheduling} evaluated priority-cognizant 2PL variants---\textit{2PL-High Priority} (which aborts lower-priority lock holders, inducing token waste) and \textit{2PL-Wait Promote} (which applies priority inheritance upon direct row lock conflicts). Crucially, because \textit{2PL-Wait Promote} lacks a preemptive partition priority ceiling admission gate, transactions still acquire initial locks in opposing orders and suffer multi-resource $\mathcal{G}_{\text{wait}}$ deadlocks. In parallel, classical database deadlock prevention via Conservative 2PL (C2PL)~\cite{bernstein1987concurrency}, canonical ordered locking, or deterministic scheduling such as Calvin~\cite{thomson2012calvin} requires transactions to either pre-declare and lock every exact row key upfront or sort all target row IDs prior to acquiring any lock. However, in multi-step agentic workflows, the fine-grained target row key $R_b$ in Step 2 (e.g., which specific warehouse lot or counterparty ledger row to debit) is discovered dynamically from the output of Step 1's LLM inference $\text{Infer}(\phi)$, making exact row-level C2PL or upfront canonical row sorting impossible without either locking coarse domain shards exclusively or running an unisolated speculative discovery pre-pass. Recent agentic concurrency frameworks---including SagaLLM~\cite{chang2025sagallm} for compensating workflows, ATCC~\cite{zhou2026atcc} (which adaptively switches LLM agent transactions between optimistic and pessimistic concurrency control based on conflict rates), and CoAgent~\cite{lyu2026coagent} (which co-designs multi-agent execution scheduling and database concurrency control)---improve agent throughput under contention, but rely on optimistic/pessimistic aborts or schedule reordering rather than a provably deadlock-free, non-aborting priority ceiling protocol coupled to live LLM token investment and epistemic action entropy.
 
----
+\subsection{Contributions}
+In this work, we present the \textbf{Epistemic Priority Ceiling Protocol (EPCP)}, an autonomous, invariant-preserving (in the concurrency-control sense of maintaining cycle-free wait invariants dynamically without background deadlock detectors or victim aborts) concurrency control architecture engineered for high-latency semantic agent transactions. Our primary contributions are:
+\begin{enumerate}
+    \item \textbf{Dual-Level Epistemic Priority Architecture ($\Pi_i^{\max}$ and $\tilde{\Pi}_i(t)$):} A formal priority formulation coupling task delegation depth ($d_i$), clipped cumulative token and aging expenditure ($\Omega_i(t)$), and inverse normalized token-level Shannon action entropy ($1 - \mathcal{H}_i(t)$, where $\mathcal{H}_i(t) \in [0, 1]$ measures action distribution uncertainty), represented as exact 64-bit integer lexicographical tuples to guarantee strict total ordering without floating-point precision loss.
+    \item \textbf{Intersecting-Footprint Partition Priority Ceilings ($C_{-A_i}^*(t; \mathcal{F}(T_i))$):} A 64-partition lock admission invariant where an agent declares an ADK routing-header hash footprint $\mathcal{F}(T_i) \subseteq \{1, \dots, 64\}$ at registration, serializing initial entry across intersecting dynamic footprints ($\mathcal{F}(T_i) \cap \mathcal{F}(T_k) \ne \emptyset$) to prevent Step-2 dynamic-discovery cycles while executing disjoint footprints ($\mathcal{F}(T_i) \cap \mathcal{F}(T_k) = \emptyset$) in full parallel concurrency.
+    \item \textbf{Provable Deadlock Immunity (Theorem 1):} A rigorous inductive proof over unified contention and ceiling wait edges demonstrating that $\mathcal{G}_{\text{wait}}(t)$ remains a directed acyclic graph (DAG) at all times, guaranteeing a 0.00\% deadlock abort rate without victim selection.
+    \item \textbf{Bounded Priority Inversion \& Starvation Freedom (Theorems 2 \& 3):} Proofs establishing per-partition single-critical-section inversion bounds via transitive priority inheritance and unconditional finite-time completion via atomic senior saturation promotion.
+    \item \textbf{Comprehensive Empirical & Live Vertex AI Validation:} Multi-threaded benchmarks over an enterprise banking and supply chain schema (10,000 Accounts, 5,000 Inventory Items) under Zipfian skew ($\theta = 0.85$), spanning sub-millisecond HMAC-SHA256 stress tests (with Zero-Depletion Controls across $K \in \{20, 30, 40\}$), 500~ms--1,500~ms 2-step LLM reasoning benchmarks ($250\text{--}750\text{ ms}$/step across 9 protocols including \texttt{2PL-Wait Promote}), and live Google Cloud Vertex AI \texttt{gemini-2.5-flash} multi-agent evaluations on project \texttt{aniket-personal}.
+\end{enumerate}
 
 \section{System Model and Problem Formulation}
 
-\subsection{Execution Environment}
-We consider a distributed database system $\mathcal{D}$ maintaining a set of shared resources $\mathcal{R} = \{R_1, R_2, \dots, R_M\}$, representing row-level or table-level locks. A swarm of $K$ autonomous agent worker threads $\mathcal{A} = \{A_1, A_2, \dots, A_K\}$ concurrently execute transactional tasks.
+\subsection{Execution Environment and Intent-Scoped Footprints}
+We consider a transactional database system $\mathcal{D}$ arbitrated by a centralized shared-memory lock coordinator (or a single Spanner Paxos group leader's local lock table~\cite{corbett2013spanner}) maintaining a set of shared row-level resources $\mathcal{R} = \{R_1, R_2, \dots, R_M\}$, mapped via a deterministic FNV-1a 64-bit hash function $\text{part} : \mathcal{R} \to \{1, \dots, B_{\text{part}}\}$ ($B_{\text{part}} = 64$) into fine-grained logical lock partitions. Each transaction's partition footprint is represented compactly as a single 64-bit unsigned integer bitmask (\texttt{uint64\_t}), enabling $O(1)$ hardware bitwise-\texttt{AND} footprint intersection checks. A swarm of $K$ autonomous agent worker threads $\mathcal{A} = \{A_1, A_2, \dots, A_K\}$ concurrently execute transactional tasks.
 
-Each transaction $T_i$ executed by agent $A_i$ consists of an alternating sequence of database lock acquisitions, semantic inference phases, and transactional mutations, culminating in a two-phase commit:
+Unlike row-level C2PL (which requires knowing every exact row primary key $R_a, R_b$ before locking), EPCP requires only an \textbf{Intent-Scoped Partition Footprint} $\mathcal{F}(T_i) \subseteq \{1, \dots, B_{\text{part}}\}$ (typically $|\mathcal{F}(T_i)| \in \{2, 3\}$ out of $B_{\text{part}} = 64$), extracted statically from the mandatory routing metadata of the agent's ADK/MCP tool invocation schema (e.g., the 64-bucket hash IDs of the target customer account segment and warehouse SKU category). While $\mathcal{F}(T_i)$ is known at registration, the exact fine-grained row keys $R_a, R_b \in \mathcal{R}$ within $\mathcal{F}(T_i)$ are discovered dynamically during execution:
 \begin{equation}
-T_i = \langle \text{Lock}(R_a), \text{Infer}(\theta), \text{Write}(R_a), \text{Lock}(R_b), \dots, \text{Commit} \rangle
+\label{eq:tx_model}
+\begin{aligned}
+T_i = \langle &\text{Register}(\mathcal{F}(T_i)),\, \text{Lock}(R_a),\, \text{BizCheck}(R_a),\, \text{Infer}(\phi), \\
+&\text{StageWrite}(R_a),\, \text{Lock}(R_b),\, \dots,\, \text{Commit} \rangle
+\end{aligned}
 \end{equation}
+where $\text{Infer}(\phi)$ denotes parameterized LLM policy inference (using $\phi$ to distinguish model parameters from the Zipfian skew parameter $\theta$), and $\text{StageWrite}(R_a)$ stages mutations in a transaction-local write buffer that is only flushed atomically to physical database storage at $\text{Commit}$ after all locks are held. If an agent ever attempts to request an out-of-footprint resource $R_{\text{req}}$ with $\text{part}(R_{\text{req}}) \notin \mathcal{F}(T_i)$, the coordinator rejects the lock call, discards the uncommitted local write buffer (so zero physical database rollback is required), memoizes completed $\text{Infer}(\phi)$ outputs in the agent's local context cache keyed by a cryptographic SHA-256 digest of the read attributes of $R_a$ (\texttt{state\_version\_digest}), releases held locks, expands $\mathcal{F}(T_i) \leftarrow \mathcal{F}(T_i) \cup \{\text{part}(R_{\text{req}})\}$, and re-registers \textit{while preserving its original arrival timestamp $t_{\text{start},i}$ and monotonic rank $\text{rank}(T_i)$}. Upon re-acquiring $R_a$, if $R_a$'s attributes are unchanged (matching \texttt{state\_version\_digest}), the memoized inference output is replayed in microseconds with \textbf{zero re-billed LLM tokens}; if $R_a$ was modified by another transaction during the brief unlock window, the SHA-256 digest misses and $\text{Infer}(\phi)$ is freshly re-evaluated against the new state (in our evaluated ADK banking and supply-chain tool schemas, routing headers bound 100\% of candidate partitions upfront, so footprint expansion is never triggered).
 
-\subsection{Wait-For-Graph and Deadlock Formalization}
-\begin{definition}[Wait-For-Graph]
-The Wait-For-Graph at time $t$, denoted $\mathcal{G}_{\text{wait}}(t) = (\mathcal{V}, \mathcal{E}(t))$, is a directed graph where:
-\begin{itemize}
-    \item Vertices $\mathcal{V} = \mathcal{A}$ represent active agent worker threads.
-    \item A directed edge $(A_i \to A_j) \in \mathcal{E}(t)$ exists if and only if agent $A_i$ is blocked awaiting a resource $R_k$ that is currently held by agent $A_j$.
-\end{itemize}
+\subsection{Unified Wait-For-Graph and Deadlock Formalization}
+Let $\text{Held}(A_j, t) \subseteq \mathcal{R}$ denote the set of resources currently locked by agent $A_j$ at time $t$.
+
+\begin{definition}[Unified Wait-For-Graph]
+The Unified Wait-For-Graph at time $t$, denoted $\mathcal{G}_{\text{wait}}(t) = (\mathcal{V}, \mathcal{E}(t))$, is a directed graph where vertices $\mathcal{V} = \mathcal{A}$ represent active agent worker threads, and a directed edge $(A_i \to A_j) \in \mathcal{E}(t)$ ($i \ne j$) exists if and only if agent $A_i$ is currently suspended awaiting lock acquisition on resource $R_{\text{req}}$ ($\text{part}(R_{\text{req}}) \in \mathcal{F}(T_i)$) because:
+\begin{enumerate}
+    \item \textbf{Direct Contention Wait:} $R_{\text{req}} \in \text{Held}(A_j, t)$; or
+    \item \textbf{Ceiling Preemption Wait:} $R_{\text{req}}$ is free, Eq.~\eqref{eq:ceiling_rule} fails for $A_i$, and $A_j$ ($j \ne i$) is an active lock holder ($\text{Held}(A_j, t) \ne \emptyset$) with an intersecting partition footprint ($\mathcal{F}(T_i) \cap \mathcal{F}(T_j) \ne \emptyset$) whose shared partition ceiling blocks $A_i$'s admission ($\max_{P_m \in \mathcal{F}(T_i) \cap \mathcal{F}(T_j)} \Pi(P_m, t) \ge \Pi_i^{\text{eff}}(t)$).
+\end{enumerate}
 \end{definition}
 
 \begin{definition}[Deadlock State]
@@ -107,218 +110,306 @@ A system is in a deadlock state at time $t$ if and only if there exists a direct
 \begin{equation}
 A_{p_1} \to A_{p_2} \to \dots \to A_{p_L} \to A_{p_1}
 \end{equation}
-Under S2PL, resolving this cycle requires selecting a victim agent $A_{p_v}$ and aborting its transaction, rolling back all uncommitted writes.
+Under S2PL, resolving this cycle requires selecting a victim agent $A_{p_v}$ and aborting its transaction, rolling back uncommitted writes and discarding in-flight LLM reasoning tokens.
 \end{definition}
-
----
 
 \section{The Epistemic Priority Ceiling Protocol}
 
-\subsection{Dynamic Epistemic Priority Formulation}
-Unlike classical real-time operating systems where thread priorities are static integers~\cite{sha1990priority}, autonomous agent priorities must reflect the economic value and epistemic certainty of in-flight reasoning tasks.
+\subsection{Monotonically Latched Epistemic Priority Formulation}
+Unlike classical real-time operating systems where thread priorities are static integers~\cite{sha1990priority, baker1991stack}, autonomous agent priorities must reflect both the economic sunk cost and epistemic certainty of in-flight reasoning tasks while remaining strictly ordered and non-decreasing during an active transaction. Following Baker's SRP principle~\cite{baker1991stack}, EPCP maintains two complementary priority quantities per transaction $T_i$: (1) a static \textbf{Transaction Upper-Envelope Preemption Level} $\Pi_i^{\max}$ (determined at registration by task depth $d_i$ and arrival rank $\text{rank}(T_i)$) that defines invariant partition ceilings so ceilings never shift mid-lock and cause self-deadlock, and (2) a live \textbf{Monotonically Latched Dynamic Priority} $\tilde{\Pi}_i(t)$ (driven by real-time token expenditure $\text{Tokens}_i(t)$, wait-time aging, and action certainty $1 - \mathcal{H}_i(t)$) that orders condition-variable wake-up queues and dynamic urgency scheduling among waiting agents. Thus, when a lock holder commits and signals blocked waiters, the waiting agent with the highest live epistemic investment $\tilde{\Pi}_k^{\text{eff}}(t)$ is dispatched first to acquire the released resource.
 
-\begin{definition}[Dynamic Epistemic Priority]
-At time $t$, the dynamic epistemic priority $\Pi_i(t) \in \mathbb{R}^+$ of agent $A_i$ is defined as:
+\begin{definition}[Dynamic and Latched Epistemic Priority]
+At time $t$, the instantaneous epistemic score $\Pi_i(t) \in \mathbb{R}^+$ of agent $A_i$ executing transaction $T_i$ (started at $t_{\text{start},i}$) is:
 \begin{equation}
 \Pi_i(t) \triangleq \Pi_{\text{base}} + w_d \cdot d_i + w_\Omega \cdot \ln(1 + \Omega_i(t)) + w_c \cdot (1 - \mathcal{H}_i(t))
 \end{equation}
-where:
-\begin{itemize}
-    \item $\Pi_{\text{base}} \ge 1.0$ is the baseline priority tier;
-    \item $d_i \in \mathbb{N}$ is the task delegation depth within the agent hierarchy;
-    \item $\Omega_i(t) \ge 0$ is the accumulated compute investment (measured in cumulative LLM inference tokens, tool call invocations, and wall-clock execution cost);
-    \item $\mathcal{H}_i(t) \in [0, 1]$ is the normalized epistemic Shannon entropy of the agent's current token distribution or intent classifier;
-    \item $w_d, w_\Omega, w_c > 0$ are fixed system weighting hyperparameters.
-\end{itemize}
+where $\Pi_{\text{base}} = 1.0$, $d_i \in \{1, \dots, d_{\max}\}$ ($d_{\max} = 4$) is the agent call-graph delegation depth, and $\Omega_i(t)$ combines cumulative LLM token investment with linear wait-time aging ($\gamma_{\text{age}} = 0.05\text{ s}^{-1}$, explicitly clipped at $\Omega_{\max} = 10^4$):
+\begin{equation}
+\Omega_i(t) \triangleq \min\!\left(\Omega_{\max},\, \frac{\text{Tokens}_i(t)}{100} + \gamma_{\text{age}}(t - t_{\text{start},i})\right)
+\end{equation}
+with $\Omega_i(t) \in [0, \Omega_{\max}]$. The normalized token-level Shannon entropy $\mathcal{H}_i(t) \in [0, 1]$ over the agent's candidate tool-action distribution $p_{i,t}(v)$ ($v \in \mathcal{V}_{\text{act}}$, extracted from the softmax log-probabilities of the LLM's structured tool-call head at time $t$, initialized to neutral uncertainty $\mathcal{H}_i(t_{\text{start},i}) = 0.5$ prior to the first inference step) is defined as:
+\begin{equation}
+\mathcal{H}_i(t) \triangleq \begin{cases}
+0, & \text{if } |\mathcal{V}_{\text{act}}| \le 1, \\
+-\frac{1}{\ln |\mathcal{V}_{\text{act}}|}\sum_{v \in \mathcal{V}_{\text{act}}} p_{i,t}(v)\ln p_{i,t}(v), & \text{if } |\mathcal{V}_{\text{act}}| > 1,
+\end{cases}
+\end{equation}
+with weights fixed at $w_d = 2.0, w_\Omega = 1.5, w_c = 3.0$ (chosen so one delegation level $w_d = 2.0$ outweighs cold-start entropy variance while full epistemic certainty $w_c = 3.0$ and log-token investment $w_\Omega \ln(1+\Omega_i(t)) \in [0, 13.82]$ dominate mid-flight urgency; sensitivity sweeps across $\pm 50\%$ weight perturbations preserve $0.00\%$ aborts with $< 2.1\%$ goodput variation). Furthermore, to guarantee unconditional starvation freedom across arbitrary depths (Theorem 3), if a waiting transaction's age reaches the senior saturation horizon $T_{\text{sat}} = \Omega_{\max}/\gamma_{\text{age}}$, its latched score AND its upper-envelope preemption score are atomically promoted to the uniform saturation ceiling $\Pi_{\text{sat}} \triangleq \Pi_{\text{base}} + w_d \cdot d_{\max} + w_\Omega \cdot \ln(1 + \Omega_{\max}) + w_c$, updating $\Pi(P_m, t)$ for all $P_m \in \mathcal{F}(T_i)$ and immediately propagating the promoted priority to any blocking holders via Eq.~\eqref{eq:inheritance}.
+
+Let $\Pi_i^{\text{score}}(t) \triangleq \max_{\tau \in [t_{\text{start},i}, t]} \Pi_i(\tau)$ denote the monotonically latched dynamic score and $\Pi_{i,\max}^{\text{score}} \triangleq \Pi_{\text{base}} + w_d d_i + w_\Omega \ln(1 + \Omega_{\max}) + w_c$ (upgraded to $\Pi_{\text{sat}}$ if $t - t_{\text{start},i} \ge T_{\text{sat}}$) denote the upper-envelope preemption score. To eliminate IEEE-754 floating-point mantissa precision loss or negativity as the monotonic arrival sequence ID $\text{rank}(T_i) \in \mathbb{N}$ grows over millions of transactions, the coordinator represents priorities internally as exact 64-bit integer lexicographical pairs $\tilde{\mathbf{\Pi}}_i(t) = \big(\lfloor 10^6 \Pi_i^{\text{score}}(t)\rfloor,\, -\text{rank}(T_i)\big)$ and $\mathbf{\Pi}_i^{\max} = \big(\lfloor 10^6 \Pi_{i,\max}^{\text{score}}\rfloor,\, -\text{rank}(T_i)\big) \in \mathbb{Z}_{\ge 0} \times \mathbb{Z}_{< 0}$ (and rebases $\text{rank}(T_i) \leftarrow 1$ whenever $\mathcal{A}_{\text{active}}(t) = \emptyset$). In scalar notation, we write this strict lexicographical order via the tie-breaker $\epsilon_{\text{tie}} = 10^{-7}$ as the \textbf{Monotonically Latched Dynamic Priority} $\tilde{\Pi}_i(t)$ and the \textbf{Transaction Upper-Envelope Preemption Level} $\Pi_i^{\max}$:
+\begin{align}
+\tilde{\Pi}_i(t) &\triangleq \Pi_i^{\text{score}}(t) - \epsilon_{\text{tie}} \cdot \text{rank}(T_i), \\
+\Pi_i^{\max} &\triangleq \Pi_{i,\max}^{\text{score}} - \epsilon_{\text{tie}} \cdot \text{rank}(T_i)
+\end{align}
+By construction, for all $t_1 \le t_2$ during $T_i$'s execution, $0 < \tilde{\Pi}_i(t_1) \le \tilde{\Pi}_i(t_2) \le \Pi_i^{\max}$, and $\Pi_i^{\max} \ne \Pi_j^{\max}$ for all $i \ne j$.
 \end{definition}
 
-The logarithmic term $\ln(1 + \Omega_i(t))$ guarantees sub-linear returns on sunk costs, preventing starvation while safeguarding heavily invested transactions from eviction. The term $(1 - \mathcal{H}_i(t))$ prioritizes agents that have achieved high confidence in their execution trajectory over agents in exploratory phases.
+\subsection{Atomic Registration and Intersecting-Footprint Partition Ceilings}
+Let $\mathcal{A}_{\text{active}}(t)$ denote the set of registered active transactions at time $t$. In EPCP, $\text{Register}(\mathcal{F}(T_q))$ and $T_q$'s initial lock check $\text{Lock}(R_a)$ execute as a \textbf{single atomic critical section under the coordinator mutex}: when $T_q$ arrives at time $t_{\text{arr}}$ with declared footprint $\mathcal{F}(T_q)$, $T_q$ is inserted into $\mathcal{A}_{\text{active}}(t)$ and into $\mathcal{U}(P_m, t) \triangleq \{A_r \in \mathcal{A}_{\text{active}}(t) \mid P_m \in \mathcal{F}(T_r)\}$ for all $P_m \in \mathcal{F}(T_q)$ (elevating each partition ceiling $\Pi(P_m, t)$ via the exact 64-bit integer tuple comparison $\mathbf{\Pi}_q^{\max}$), and immediately evaluates Eq.~\eqref{eq:ceiling_rule} for $R_a$. If any active lock holder $A_k$ ($\text{Held}(A_k, t_{\text{arr}}) \ne \emptyset$) has an intersecting footprint $\mathcal{F}(T_k) \cap \mathcal{F}(T_q) \ne \emptyset$, $T_q$ atomically binds ceiling wait edges $(A_q \to A_k)$ for all $A_k \in \mathcal{B}_{\text{ceil}}(A_q, t_{\text{arr}})$ and propagates $\Pi_q^{\max}$ to $A_k$ via transitive priority inheritance (Eq.~\eqref{eq:inheritance}) before releasing the coordinator mutex to sleep on $\text{CV}_{\text{ceil}}$.
 
-\subsection{Dynamic Resource Ceilings}
-Let $\mathcal{U}(R_j) \subseteq \mathcal{A}$ denote the set of all agents authorized to access resource $R_j$.
-
-\begin{definition}[Resource Priority Ceiling]
-The dynamic priority ceiling $C(R_j, t)$ of resource $R_j$ is defined as the supremum of epistemic priorities of all registered agents that may access $R_j$:
+\begin{definition}[Partition Ceiling and Intersecting-Footprint System Ceiling]
+For each logical partition $P_m \in \{1, \dots, B_{\text{part}}\}$, the partition priority ceiling $\Pi(P_m, t)$ (and resource ceiling $C(R_j, t) \triangleq \Pi(\text{part}(R_j), t)$) is the maximum upper-envelope preemption bound among all active transactions registered for partition $P_m$:
 \begin{equation}
-C(R_j, t) \triangleq \max_{A_k \in \mathcal{U}(R_j)} \Pi_k(t)
+\label{eq:part_ceiling_def}
+\Pi(P_m, t) \triangleq \max \Big( \{0\} \cup \big\{ \Pi_q^{\max} \;\big|\; A_q \in \mathcal{U}(P_m, t) \big\} \Big)
 \end{equation}
-\end{definition}
-
-\begin{definition}[System Ceiling]
-The system ceiling $C^*(t)$ is the maximum ceiling among all resources currently locked by any agent in the system:
-\begin{equation}
-C^*(t) \triangleq \max \left( \{0\} \cup \{ C(R_m, t) \mid R_m \text{ is held by some } A_k \in \mathcal{A} \} \right)
-\end{equation}
-For an agent $A_i$, the external system ceiling $C_{-A_i}^*(t)$ is the maximum ceiling of all resources held by agents \textit{other than} $A_i$:
-\begin{equation}
-C_{-A_i}^*(t) \triangleq \max \left( \{0\} \cup \{ C(R_m, t) \mid R_m \text{ is held by } A_k, k \ne i \} \right)
-\end{equation}
-\end{definition}
-
-\subsection{EPCP Resource Allocation Invariant}
-When agent $A_i$ requests lock acquisition on resource $R_{\text{req}}$ at time $t$:
+Because $\Pi(P_m, t)$ is computed over the upper-envelope $\Pi_q^{\max}$ of registered agents, $\Pi(P_m, t) \ge \tilde{\Pi}_q(\tau)$ holds for every $A_q \in \mathcal{U}(P_m, t)$ at all instants $\tau$. For an agent $A_i$ with footprint $\mathcal{F}(T_i)$, let $\mathcal{K}_{\text{ext}}(A_i, t) \triangleq \{A_k \in \mathcal{A}_{\text{active}}(t) \setminus \{A_i\} \mid \text{Held}(A_k, t) \ne \emptyset \;\land\; \mathcal{F}(T_k) \cap \mathcal{F}(T_i) \ne \emptyset\}$ denote the set of active \textit{external} lock-holding agents whose declared partition footprint intersects $\mathcal{F}(T_i)$. The \textbf{External Intersecting-Footprint System Ceiling} $C_{-A_i}^*(t; \mathcal{F}(T_i))$ and the \textbf{Overall Intersecting-Footprint System Ceiling} $C^*(t; \mathcal{F}(T_i))$ are defined as:
+\begin{align}
+\label{eq:ext_ceiling_def}
+C_{-A_i}^*(t; \mathcal{F}(T_i)) &\triangleq \max \Big( \{0\} \cup \big\{ \Pi(P_m, t) \;\big|\; A_k \in \mathcal{K}_{\text{ext}}(A_i, t), \nonumber \\
+&\qquad\quad P_m \in \mathcal{F}(T_i) \cap \mathcal{F}(T_k) \big\} \Big), \\
+\label{eq:overall_ceiling_def}
+C^*(t; \mathcal{F}(T_i)) &\triangleq \max \Big( \{0\} \cup \big\{ \Pi(P_m, t) \;\big|\; A_k \in \mathcal{A}_{\text{active}}(t), \nonumber \\
+&\qquad\quad \text{Held}(A_k, t) \ne \emptyset,\, P_m \in \mathcal{F}(T_i) \cap \mathcal{F}(T_k) \big\} \Big)
+\end{align}
+Notice two fundamental properties of Eq.~\eqref{eq:ext_ceiling_def}:
 \begin{enumerate}
-    \item \textbf{Reentrancy:} If $A_i$ is already the exclusive holder of $R_{\text{req}}$, access is granted immediately.
-    \item \textbf{Contention Suspension:} If $R_{\text{req}}$ is currently held by another agent $A_j$, $A_i$ is blocked and enqueued.
-    \item \textbf{Ceiling Admissibility Rule:} If $R_{\text{req}}$ is currently free, $A_i$ is granted the lock \textbf{if and only if}:
+    \item \textbf{Parallel Concurrency Across Disjoint 64-Bucket Footprints ($\mathcal{K}_{\text{ext}}(A_i, t) = \emptyset$):} Whenever no external lock-holding transaction has a footprint intersecting $\mathcal{F}(T_i)$ ($\mathcal{K}_{\text{ext}}(A_i, t) = \emptyset$, e.g., when concurrent agents operate on non-overlapping hash buckets across $B_{\text{part}} = 64$), Eq.~\eqref{eq:ext_ceiling_def} takes the maximum over the empty set and yields $C_{-A_i}^*(t; \mathcal{F}(T_i)) = 0 < \Pi_i^{\text{eff}}(t)$. Thus, $A_i$ never self-blocks on its own registration in $\mathcal{U}(P_m, t)$ and enters immediately in parallel with all disjoint-footprint transactions.
+    \item \textbf{Intersecting-Footprint Admission Exclusion ($\mathcal{K}_{\text{ext}}(A_i, t) \ne \emptyset$):} Because $A_i \in \mathcal{U}(P_m, t)$ for all $P_m \in \mathcal{F}(T_i)$, whenever an external transaction $A_k \in \mathcal{K}_{\text{ext}}(A_i, t)$ already holds any lock ($\text{Held}(A_k, t) \ne \emptyset$) and shares at least one partition $P_{\text{shared}} \in \mathcal{F}(T_i) \cap \mathcal{F}(T_k)$, Eq.~\eqref{eq:ext_ceiling_def} yields $C_{-A_i}^*(t; \mathcal{F}(T_i)) \ge \Pi(P_{\text{shared}}, t) \ge \max(\Pi_i^{\max}, \Pi_k^{\max}) \ge \Pi_i^{\max}$. Because Step-2 row keys inside $\mathcal{F}(T_i)$ are discovered dynamically during Step-1 LLM inference, this intentionally enforces \textbf{single-holder admission exclusion across intersecting footprints}: a newly arriving $A_i$ ($\text{Held}(A_i, t) = \emptyset$, even if $\Pi_i^{\max} > \Pi_k^{\max}$) is suspended at the admission gate $\text{CV}_{\text{ceil}}(P_{\text{shared}})$ rather than entering $P_{\text{shared}}$ concurrently with $A_k$ (which would risk $A_i$ and $A_k$ dynamically discovering and requesting each other's held rows in Step 2), and instead immediately elevates $A_k$ via transitive priority inheritance ($\Pi_k^{\text{eff}}(t) \leftarrow \max(\Pi_k^{\text{eff}}(t), \Pi_i^{\max})$) so $A_k$ completes its remaining steps rapidly and hands the footprint to $A_i$.
+\end{enumerate}
+\end{definition}
+
+\subsection{EPCP Resource Allocation and Guarded Pass-Through Rules}
+When agent $A_i$ requests lock acquisition on resource $R_{\text{req}}$ ($\text{part}(R_{\text{req}}) \in \mathcal{F}(T_i)$) at time $t$ (summarized in Algorithm~\ref{alg:epcp}):
+\begin{enumerate}
+    \item \textbf{Reentrancy:} If $R_{\text{req}} \in \text{Held}(A_i, t)$, access is granted immediately.
+    \item \textbf{Contention Suspension:} If $R_{\text{req}} \in \text{Held}(A_j, t)$ ($j \ne i$), $A_i$ is suspended on $\text{CV}(R_{\text{req}})$ and directed edge $(A_i \to A_j)$ is added to $\mathcal{G}_{\text{wait}}(t)$.
+    \item \textbf{Ceiling Admissibility \& Guarded Inheritance Pass-Through Rule:} If $R_{\text{req}}$ is currently free, $A_i$ is granted the lock \textbf{if and only if}:
     \begin{equation}
-    \Pi_i^{\text{eff}}(t) > C_{-A_i}^*(t)
+    \label{eq:ceiling_rule}
+    \begin{aligned}
+    \Pi_i^{\text{eff}}(t) &> C_{-A_i}^*(t; \mathcal{F}(T_i)) \\
+    &\lor \Big( \Pi_i^{\text{eff}}(t) = C^*(t; \mathcal{F}(T_i)) \land \text{Held}(A_i, t) \ne \emptyset \\
+    &\quad \land \big[\Pi_i^{\text{eff}}(t) > \Pi_i^{\max} \\
+    &\qquad \lor \Pi_i^{\max} = C^*(t; \mathcal{F}(T_i))\big] \Big)
+    \end{aligned}
     \end{equation}
-    where $\Pi_i^{\text{eff}}(t)$ is the effective priority of agent $A_i$. If this condition fails, $A_i$ is preemptively suspended on a condition variable, even though $R_{\text{req}}$ is free.
+    The explicit guard $\text{Held}(A_i, t) \ne \emptyset$ in the second disjunct ensures that an agent entering its critical section for the first time ($\text{Held}(A_i, t) = \emptyset$) \textit{must} satisfy the strict inequality $\Pi_i^{\text{eff}}(t) > C_{-A_i}^*(t; \mathcal{F}(T_i))$ (which holds if and only if $\mathcal{K}_{\text{ext}}(A_i, t) = \emptyset$). Conversely, once $A_i$ already holds its initial lock ($\text{Held}(A_i, t) \ne \emptyset$) and either uniquely owns the top ceiling $\Pi_i^{\max} = C^*(t; \mathcal{F}(T_i))$ or has inherited $\Pi_i^{\text{eff}}(t) = C^*(t; \mathcal{F}(T_i)) > \Pi_i^{\max}$ from a ceiling-blocked waiter $A_q$, the guarded pass-through clause permits $A_i$ to acquire its Step-2 locks within $\mathcal{F}(T_i)$ without self-blocking. If Eq.~\eqref{eq:ceiling_rule} fails, let $\mathcal{B}_{\text{ceil}}(A_i, t) \triangleq \{A_j \in \mathcal{K}_{\text{ext}}(A_i, t) \mid \max_{P_m \in \mathcal{F}(T_i) \cap \mathcal{F}(T_j)} \Pi(P_m, t) \ge \Pi_i^{\text{eff}}(t)\}$ be the non-empty set of external ceiling-blocking lock holders; $A_i$ is suspended on $\text{CV}_{\text{ceil}}(P_m)$ and directed wait edges $(A_i \to A_j)$ are recorded in $\mathcal{G}_{\text{wait}}(t)$ for all $A_j \in \mathcal{B}_{\text{ceil}}(A_i, t)$ (matching Definition 1(2)).
 \end{enumerate}
 
-\subsection{Transitive Epistemic Priority Inheritance}
-To avoid unbounded priority inversion when a high-priority agent is suspended:
-\begin{equation}
-\Pi_j^{\text{eff}}(t) \triangleq \max \left( \Pi_j(t), \max_{A_k \in \text{Waiters}(A_j)} \Pi_k^{\text{eff}}(t) \right)
-\end{equation}
-Whenever agent $A_i$ blocks waiting for a resource held by $A_j$, $A_j$ immediately inherits $A_i$'s effective priority. This inheritance cascades transitively along any active dependency chain until $A_j$ commits its transaction and releases the resource.
+\begin{algorithm}[t]
+\caption{EPCP Atomic Lock Acquisition \& Release}
+\label{alg:epcp}
+\begin{algorithmic}[1]
+\small
+\STATE \textbf{Procedure} $\textsc{AcquireLock}(A_i, R_{\text{req}})$ \textbf{under Coordinator Mutex:}
+\IF{$\text{part}(R_{\text{req}}) \notin \mathcal{F}(T_i)$}
+    \STATE Discard local staged writes; release $\text{Held}(A_i, t)$; expand $\mathcal{F}(T_i) \leftarrow \mathcal{F}(T_i) \cup \{\text{part}(R_{\text{req}})\}$ preserving $(t_{\text{start},i}, \text{rank}(T_i))$
+\ENDIF
+\LOOP
+    \IF{$t - t_{\text{start},i} \ge T_{\text{sat}}$}
+        \STATE Promote $\tilde{\Pi}_i(t), \Pi_i^{\max} \leftarrow \Pi_{\text{sat}} - \epsilon_{\text{tie}}\text{rank}(T_i)$; update $\Pi(P_m, t)$
+    \ENDIF
+    \IF{$R_{\text{req}} \in \text{Held}(A_i, t)$} \RETURN \TRUE \textbf{end if}
+    \STATE Compute $C_{-A_i}^*(t; \mathcal{F}(T_i))$ and $C^*(t; \mathcal{F}(T_i))$ via 64-bit footprint masks
+    \IF{$R_{\text{req}}$ is free \AND Eq.~\eqref{eq:ceiling_rule} holds}
+        \STATE $\text{Held}(A_i, t) \leftarrow \text{Held}(A_i, t) \cup \{R_{\text{req}}\}$; clear outgoing $\mathcal{E}(A_i)$; \RETURN \TRUE
+    \ENDIF
+    \STATE Bind $(A_i \to A_j) \in \mathcal{E}(t)$ for holder of $R_{\text{req}}$ (Rule 2) or all $A_j \in \mathcal{B}_{\text{ceil}}(A_i, t)$ (Rule 3)
+    \STATE Propagate $\Pi_i^{\text{eff}}(t)$ and $\tilde{\Pi}_i^{\text{eff}}(t)$ transitively along $\mathcal{G}_{\text{wait}}(t)$ via Eq.~\eqref{eq:inheritance}
+    \STATE $\textsc{Wait}(\text{CV}(R_{\text{req}}) \text{ or } \text{CV}_{\text{ceil}}(P_m))$
+\ENDLOOP
+\STATE \textbf{Procedure} $\textsc{ReleaseAllLocks}(A_j)$ \textbf{at Commit / Biz-Rule Exit:}
+\STATE Flush staged writes (if committing); release $\text{Held}(A_j, t)$; remove $A_j \in \mathcal{A}_{\text{active}}(t)$ and update $\Pi(P_m, t)$; wake waiters in descending order of $\tilde{\mathbf{\Pi}}_k^{\text{eff}}(t)$.
+\end{algorithmic}
+\end{algorithm}
 
----
+\subsection{Unified Transitive Epistemic Priority Inheritance and Release Mechanics}
+To prevent unbounded priority inversion under both Rule 2 (direct contention) and Rule 3 (ceiling preemption), let $\text{Waiters}(A_j, t) \triangleq \{A_k \in \mathcal{A} \mid (A_k \to A_j) \in \mathcal{E}(t)\}$ denote all agents directly or ceiling-blocked by resources held by $A_j$. The effective preemption priority $\Pi_j^{\text{eff}}(t)$ and effective dynamic urgency $\tilde{\Pi}_j^{\text{eff}}(t)$ of $A_j$ are maintained atomically:
+\begin{align}
+\label{eq:inheritance}
+\Pi_j^{\text{eff}}(t) &\triangleq \max \left( \Pi_j^{\max},\, \max_{A_k \in \text{Waiters}(A_j, t)} \Pi_k^{\text{eff}}(t) \right), \\
+\tilde{\Pi}_j^{\text{eff}}(t) &\triangleq \max \left( \tilde{\Pi}_j(t),\, \max_{A_k \in \text{Waiters}(A_j, t)} \tilde{\Pi}_k^{\text{eff}}(t) \right)
+\end{align}
+Whenever $A_i$ blocks on $A_j \in \mathcal{B}_{\text{ceil}}(A_i, t)$ (or via direct contention), $A_j$ immediately inherits both $\Pi_i^{\text{eff}}(t)$ (enabling guarded pass-through under Eq.~\eqref{eq:ceiling_rule}) and $\tilde{\Pi}_i^{\text{eff}}(t)$ transitively along any directed path in $\mathcal{G}_{\text{wait}}(t)$. Upon transaction commit (or clean \texttt{Biz-Rule Reject} exit), $A_j$ atomically releases all locks in $\text{Held}(A_j, t)$, removes itself from $\mathcal{A}_{\text{active}}(t)$---which deletes $A_j$ from $\mathcal{U}(P_m, t)$ and updates each partition max-heap $\Pi(P_m, t)$ for $P_m \in \mathcal{F}(T_j)$---removes all incoming edges $(A_k \to A_j) \in \mathcal{E}(t)$, and signals waiting threads on $\text{CV}(R_{\text{req}})$ and $\text{CV}_{\text{ceil}}(P_m)$ in descending order of live dynamic urgency $\tilde{\Pi}_k^{\text{eff}}(t)$. Maintaining per-partition max-heaps over $K$ threads alongside 64-bit integer footprint bitmasks (\texttt{uint64\_t} bitwise-\texttt{AND} overlap checks in $O(1)$ per active holder) bounds each lock/unlock operation to $\mathcal{O}(|\mathcal{F}(T_i)|\log K + K)$ time ($< 1.8\text{ }\mu\text{s}$ at $K=40, |\mathcal{F}(T_i)| \le 3$).
+
+\begin{table*}[t]
+\centering
+\caption{Regime 1 Enterprise Concurrency Telemetry: Strict 2PL vs.\ EPCP under Zipfian Contention ($\theta = 0.85$, Freshly Re-Seeded Per Run, 5 Seeds $\text{Mean} \pm \text{SD}$; $\text{Total Tx} = \text{Committed} + \text{Biz-Rule Reject} + \text{Deadlocks}$)}
+\label{tab:enterprise_telemetry}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lrrrrrrrrrrrrr@{}}
+\toprule
+\textbf{Protocol} & \textbf{$K$} & \textbf{Total Tx} & \textbf{Committed} & \textbf{Biz-Rule Reject$^\dagger$} & \textbf{Deadlocks} & \textbf{Abort (\%)} & \textbf{Duration (s)} & \textbf{Goodput (TPS)$^\ddagger$} & \textbf{Total TPS$^\ddagger$} & \textbf{All Mean Lat (ms)} & \textbf{Comm.\ Mean Lat (ms)$^\S$} & \textbf{All / Comm.\ P95 Lat (ms)$^\S$} & \textbf{All P99 / Max Lat (ms)$^\P$} \\
+\midrule
+S2PL & 5  & 125  & $125.0 \pm 0.0$ & $0.0 \pm 0.0$   & $0.0 \pm 0.0$ & $0.00 \pm 0.00\%$ & $0.137 \pm 0.006$ & $913.21 \pm 38.4$   & $913.21 \pm 38.4$   & $4.50 \pm 0.21$  & $4.50 \pm 0.21$  & $19.03 \pm 1.12$ / $19.03$ & $24.10$ / $28.40$ \\
+EPCP & 5  & 125  & $125.0 \pm 0.0$ & $0.0 \pm 0.0$   & $\mathbf{0.0 \pm 0.0}$ & $\mathbf{0.00 \pm 0.00\%}$ & $0.116 \pm 0.005$ & $\mathbf{1{,}075.45 \pm 42.1}$ & $\mathbf{1{,}075.45 \pm 42.1}$ & $\mathbf{2.80 \pm 0.14}$  & $\mathbf{2.80 \pm 0.14}$  & $\mathbf{3.09 \pm 0.18}$ / $\mathbf{3.09}$   & $\mathbf{6.85}$ / $\mathbf{11.20}$ \\
+\midrule
+S2PL & 10 & 250  & $250.0 \pm 0.0$ & $0.0 \pm 0.0$   & $0.0 \pm 0.0$ & $0.00 \pm 0.00\%$ & $0.307 \pm 0.014$ & $814.94 \pm 35.2$   & $814.94 \pm 35.2$   & $9.77 \pm 0.45$  & $9.77 \pm 0.45$  & $46.25 \pm 2.45$ / $46.25$ & $62.40$ / $78.90$ \\
+EPCP & 10 & 250  & $250.0 \pm 0.0$ & $0.0 \pm 0.0$   & $\mathbf{0.0 \pm 0.0}$ & $\mathbf{0.00 \pm 0.00\%}$ & $0.296 \pm 0.012$ & $\mathbf{845.69 \pm 33.8}$   & $\mathbf{845.69 \pm 33.8}$   & $\mathbf{7.36 \pm 0.38}$  & $\mathbf{7.36 \pm 0.38}$  & $\mathbf{3.23 \pm 0.19}$ / $\mathbf{3.23}$   & $84.50$ / $118.40$ \\
+\midrule
+S2PL & 20 & 500  & $468.0 \pm 5.2$ & $29.0 \pm 4.8$  & $3.0 \pm 1.0$ & $0.60 \pm 0.20\%$ & $0.797 \pm 0.035$ & $586.84 \pm 25.1$   & $627.35 \pm 26.8$   & $27.44 \pm 1.62$ & $28.95 \pm 1.70$ & $114.72 \pm 6.30$ / $118.40$ & $168.20$ / $214.50$ \\
+EPCP & 20 & 500  & $413.0 \pm 6.1$ & $87.0 \pm 6.1$  & $\mathbf{0.0 \pm 0.0}$ & $\mathbf{0.00 \pm 0.00\%}$ & $0.693 \pm 0.029$ & $\mathbf{596.06 \pm 24.3}$   & $\mathbf{721.50 \pm 29.4}$   & $\mathbf{17.40 \pm 1.05}$ & $\mathbf{20.62 \pm 1.24}$ & $\mathbf{3.24 \pm 0.21}$ / $\mathbf{3.41}$   & $245.10$ / $312.60$ \\
+\midrule
+S2PL & 30 & 750  & $505.0 \pm 8.4$ & $241.0 \pm 8.1$ & $4.0 \pm 1.3$ & $0.53 \pm 0.18\%$ & $1.482 \pm 0.068$ & $340.70 \pm 15.6$   & $506.07 \pm 23.1$   & $52.76 \pm 3.10$ & $71.40 \pm 4.15$ & $238.66 \pm 12.80$ / $264.10$ & $342.80$ / $418.00$ \\
+EPCP & 30 & 750  & $444.0 \pm 7.9$ & $306.0 \pm 7.9$ & $\mathbf{0.0 \pm 0.0}$ & $\mathbf{0.00 \pm 0.00\%}$ & $1.667 \pm 0.071$ & $266.41 \pm 11.4$   & $449.91 \pm 19.2$   & $\mathbf{43.16 \pm 2.45}$ & $\mathbf{64.85 \pm 3.60}$ & $429.58 \pm 21.50$ / $462.30$ & $598.40$ / $684.20$ \\
+\midrule
+S2PL & 40 & 1000 & $376.0 \pm 9.5$ & $620.0 \pm 9.2$ & $4.0 \pm 1.4$ & $0.40 \pm 0.14\%$ & $2.537 \pm 0.112$ & $148.18 \pm 6.5$    & $394.17 \pm 17.4$   & $93.65 \pm 5.40$ & $182.10 \pm 9.80$ & $302.18 \pm 16.40$ / $348.50$ & $465.00$ / $582.10$ \\
+EPCP & 40 & 1000 & $318.0 \pm 8.8$ & $682.0 \pm 8.8$ & $\mathbf{0.0 \pm 0.0}$ & $\mathbf{0.00 \pm 0.00\%}$ & $1.937 \pm 0.084$ & $\mathbf{164.21 \pm 7.1}$    & $\mathbf{516.26 \pm 22.3}$   & $\mathbf{47.13 \pm 2.80}$ & $\mathbf{108.40 \pm 5.90}$ & $494.36 \pm 24.80$ / $538.20$ & $642.10$ / $748.50$ \\
+\midrule
+\multicolumn{14}{@{}l}{\textit{\textbf{Zero-Depletion Controls Across $K \in \{20, 30, 40\}$} ($100\times$ Initial Balance/Stock Snapshot; $0$ \texttt{Biz-Rule Rejects}, Isolating Pure Concurrency Arbitration on Full Workflows)}} \\
+S2PL (No-Depl.) & 20 & 500  & $495.0 \pm 1.4$ & $0.0 \pm 0.0$ & $5.0 \pm 1.4$  & $1.00 \pm 0.28\%$ & $0.884 \pm 0.038$ & $559.95 \pm 24.1$ & $565.61 \pm 24.3$ & $31.20 \pm 1.75$ & $31.40 \pm 1.78$ & $124.50 \pm 6.80$ / $125.10$ & $178.40$ / $228.00$ \\
+EPCP (No-Depl.) & 20 & 500  & $\mathbf{500.0 \pm 0.0}$ & $0.0 \pm 0.0$ & $\mathbf{0.0 \pm 0.0}$ & $\mathbf{0.00 \pm 0.00\%}$ & $\mathbf{0.742 \pm 0.031}$ & $\mathbf{673.85 \pm 28.2}$ & $\mathbf{673.85 \pm 28.2}$ & $\mathbf{21.10 \pm 1.15}$ & $\mathbf{21.10 \pm 1.15}$ & $\mathbf{3.45 \pm 0.22}$ / $\mathbf{3.45}$ & $252.00$ / $318.50$ \\
+S2PL (No-Depl.) & 30 & 750  & $742.0 \pm 1.8$ & $0.0 \pm 0.0$ & $8.0 \pm 1.8$  & $1.07 \pm 0.24\%$ & $2.105 \pm 0.092$ & $352.49 \pm 15.4$ & $356.29 \pm 15.6$ & $78.40 \pm 4.20$ & $78.95 \pm 4.25$ & $272.10 \pm 14.10$ / $273.40$ & $385.20$ / $468.00$ \\
+EPCP (No-Depl.) & 30 & 750  & $\mathbf{750.0 \pm 0.0}$ & $0.0 \pm 0.0$ & $\mathbf{0.0 \pm 0.0}$ & $\mathbf{0.00 \pm 0.00\%}$ & $\mathbf{1.790 \pm 0.076}$ & $\mathbf{418.99 \pm 17.8}$ & $\mathbf{418.99 \pm 17.8}$ & $\mathbf{54.20 \pm 2.95}$ & $\mathbf{54.20 \pm 2.95}$ & $318.40 \pm 16.20$ / $318.40$ & $482.10$ / $564.00$ \\
+S2PL (No-Depl.) & 40 & 1000 & $989.0 \pm 2.2$ & $0.0 \pm 0.0$ & $11.0 \pm 2.2$ & $1.10 \pm 0.22\%$ & $4.120 \pm 0.185$ & $240.05 \pm 10.8$ & $242.72 \pm 10.9$ & $142.80 \pm 7.90$ & $143.60 \pm 7.95$ & $385.40 \pm 19.50$ / $386.20$ & $524.00$ / $648.00$ \\
+EPCP (No-Depl.) & 40 & 1000 & $\mathbf{1{,}000.0 \pm 0.0}$ & $0.0 \pm 0.0$ & $\mathbf{0.0 \pm 0.0}$ & $\mathbf{0.00 \pm 0.00\%}$ & $\mathbf{3.390 \pm 0.142}$ & $\mathbf{294.99 \pm 12.3}$ & $\mathbf{294.99 \pm 12.3}$ & $\mathbf{86.40 \pm 4.60}$ & $\mathbf{86.40 \pm 4.60}$ & $412.50 \pm 20.80$ / $412.50$ & $586.00$ / $692.00$ \\
+\bottomrule
+\multicolumn{14}{@{}l}{\scriptsize $^\dagger$\textbf{Biz-Rule Reject:} Clean application-level domain exit immediately upon Step-1 lock acquisition when a hot Zipfian account/SKU ($\theta=0.85$) has insufficient balance/stock ($0$ LLM tokens wasted; $0$ concurrency rollbacks).} \\
+\multicolumn{14}{@{}l}{\scriptsize $^\ddagger$\textbf{Goodput (TPS)} and \textbf{Total TPS} are computed per seed ($\text{Committed}_s / \text{Duration}_s$ and $\text{Total Tx}_s / \text{Duration}_s$) and reported as 5-seed $\text{Mean} \pm \text{SD}$. Under S2PL, deadlock victims are aborted by the WFG detector without internal retry.} \\
+\multicolumn{14}{@{}l}{\scriptsize $^\S$\textbf{Comm.\ Mean / P95 Lat:} Latency restricted to full committed settlements. Because \texttt{Biz-Rule Rejects} exit in $<0.2\text{ ms}$ after Step-1 lock acquisition, \texttt{All Mean Lat} is lower than \texttt{Comm.\ Mean Lat} when rejects occur ($K \ge 20$).} \\
+\multicolumn{14}{@{}l}{\scriptsize $^\P$\textbf{P99 / Max Lat \& Tail Draining:} In fixed-quota runs ($25\text{ tx/thread}$), wall duration equals the completion time of the last thread. At $K=30$ under finite stock, more threads execute full 2-step settlements ($444$) than at $K=40$ ($318$).}
+\end{tabular}%
+}
+\end{table*}
 
 \section{Formal Theoretical Analysis}
 
 \subsection{Theorem 1: Deadlock Elimination via Inductive Dynamic Acyclicity}
 \begin{theorem}[Deadlock Elimination]
-Under the Epistemic Priority Ceiling Protocol (EPCP), the Wait-For-Graph $\mathcal{G}_{\text{wait}}(t)$ is strictly acyclic for all times $t \ge 0$. Consequently, deadlocks are provably impossible, and the transaction abort rate due to deadlock is identically 0.00\%.
+Under the Epistemic Priority Ceiling Protocol (EPCP), the Unified Wait-For-Graph $\mathcal{G}_{\text{wait}}(t)$ is a directed acyclic graph (DAG) for all times $t \ge 0$. Consequently, deadlocks are provably impossible, and the transaction abort rate due to deadlock is identically 0.00\%.
 \end{theorem}
 
 \begin{proof}
-We prove Theorem 1 by contradiction using mathematical induction over the sequence of lock acquisition events $t_0 < t_1 < t_2 < \dots < t_N$.
+We prove Theorem 1 by contradiction using mathematical induction over the discrete sequence of lock acquisition and suspension events $0 = t_0 < t_1 < t_2 < \dots < t_N$.
 
-\textbf{Base Case ($t=0$):} At system startup, no resources are held. $\mathcal{E}(0) = \emptyset$. The Wait-For-Graph consists of isolated vertices with zero edges, which is trivially acyclic.
+\textbf{Base Case ($t=0$):} At system initialization, no locks are held and $\mathcal{E}(0) = \emptyset$, which is trivially acyclic.
 
-\textbf{Inductive Hypothesis:} Assume that at all times $t < t_k$, $\mathcal{G}_{\text{wait}}(t)$ contains no directed cycles.
+\textbf{Inductive Hypothesis:} Assume that for all $t < t_k$, $\mathcal{G}_{\text{wait}}(t)$ is a directed acyclic graph (DAG).
 
-\textbf{Inductive Step ($t = t_k$):} Suppose for the sake of contradiction that at time $t_k$, an event creates a closed directed cycle of length $L \ge 2$:
+\textbf{Inductive Step ($t = t_k$):} Suppose for the sake of contradiction that at event time $t_k$, a lock request by some agent closes a minimal directed cycle of length $L \ge 2$ in $\mathcal{G}_{\text{wait}}(t_k)$:
 \begin{equation}
 A_{p_1} \to A_{p_2} \to \dots \to A_{p_L} \to A_{p_1}
 \end{equation}
-This implies that:
-\begin{itemize}
-    \item For each $m \in \{1, \dots, L-1\}$, agent $A_{p_m}$ is blocked waiting for resource $R_{(m)}$ held by agent $A_{p_{m+1}}$.
-    \item Agent $A_{p_L}$ is blocked waiting for resource $R_{(L)}$ held by agent $A_{p_1}$.
-\end{itemize}
-
-By definition of the resource priority ceiling (Definition 2), the ceiling of any resource $R_{(m)}$ satisfies:
+where $\text{succ}(m) \triangleq (m \bmod L) + 1$. By Definition 1, every directed edge $(A_{p_m} \to A_{p_{\text{succ}(m)}}) \in \mathcal{E}(t_k)$ requires that $A_{p_{\text{succ}(m)}}$ is currently holding at least one lock ($\text{Held}(A_{p_{\text{succ}(m)}}, t_k) \ne \emptyset$) and that their declared partition footprints intersect:
 \begin{equation}
-C(R_{(m)}) \ge \Pi_{p_m}(t_k)
+\label{eq:footprint_overlap}
+\mathcal{F}(T_{p_m}) \cap \mathcal{F}(T_{p_{\text{succ}(m)}}) \ne \emptyset, \quad \forall m \in \{1, \dots, L\}
 \end{equation}
-since agent $A_{p_m}$ accesses $R_{(m)}$ and thus $A_{p_m} \in \mathcal{U}(R_{(m)})$.
 
-Now consider the temporal ordering of when each agent entered its critical section. Let $A_{p^*}$ be the agent in the cycle that acquired its first currently held resource latest in time, say at time $t^* \le t_k$. 
+For each agent $A_{p_m}$ in the cycle, since $\text{Held}(A_{p_m}, t_k) \ne \emptyset$, let $t_{p_m}^{\text{entry}} < t_k$ denote the exact instant when $A_{p_m}$ transitioned from holding no locks ($\text{Held}(A_{p_m}, t_{p_m}^{\text{entry}-}) = \emptyset$) to acquiring the first of its currently held locks $R_{(p_m)}^{\text{first}}$. Because events are serialized by the coordinator mutex, entry timestamps are distinct; let $A_{p^*}$ ($p^* \in \{1, \dots, L\}$) be the unique agent in the cycle that entered its critical section latest in time:
+\begin{equation}
+t^* \triangleq t_{p^*}^{\text{entry}} = \max_{m \in \{1, \dots, L\}} t_{p_m}^{\text{entry}} < t_k
+\end{equation}
+Consider the system state at $t^{*-}$ immediately prior to $A_{p^*}$ being granted $R_{(p^*)}^{\text{first}}$. Because $t_{p_m}^{\text{entry}} < t^*$ for every other cycle member $m \ne p^*$, $A_{p^*}$'s cycle successor $A_{p_{\text{succ}(p^*)}}$ ($p_{\text{succ}(p^*)} \ne p^*$ since $L \ge 2$) had already entered its critical section and was actively holding at least $R_{(p_{\text{succ}(p^*))}}^{\text{first}}$ at $t^{*-}$, so $\text{Held}(A_{p_{\text{succ}(p^*)}}, t^{*-}) \ne \emptyset$.
 
-When $A_{p^*}$ acquired its resource $R^*$, all other agents in the cycle $\{A_{p_m} \mid p_m \ne p^*\}$ already held their respective resources $\{R_{(m)}\}$.
-
-According to the EPCP Ceiling Admissibility Rule (Equation 7), agent $A_{p^*}$ was permitted to acquire $R^*$ only if its effective priority strictly exceeded the external system ceiling established by the resources already held by the other agents:
+By Eq.~\eqref{eq:footprint_overlap}, there exists at least one shared partition $P_{\text{shared}} \in \mathcal{F}(T_{p^*}) \cap \mathcal{F}(T_{p_{\text{succ}(p^*)}})$. By the atomic registration invariant (Section 3.2), both $A_{p^*}$ and $A_{p_{\text{succ}(p^*)}}$ belonged to $\mathcal{U}(P_{\text{shared}}, t^{*-})$ at $t^{*-}$. Consequently, the partition priority ceiling of $P_{\text{shared}}$ at $t^{*-}$ satisfied:
 \begin{equation}
-\Pi_{p^*}^{\text{eff}}(t^*) > C_{-A_{p^*} }^*(t^*)
+\begin{aligned}
+\Pi(P_{\text{shared}}, t^{*-}) &= \max_{A_q \in \mathcal{U}(P_{\text{shared}}, t^{*-})} \Pi_q^{\max} \\
+&\ge \max\big(\Pi_{p^*}^{\max},\, \Pi_{p_{\text{succ}(p^*)}}^{\max}\big) \ge \Pi_{p^*}^{\max}
+\end{aligned}
 \end{equation}
-Because at time $t^*$ the other agents already held resources $\{R_{(m)}\}$, we have:
+Because $A_{p_{\text{succ}(p^*)}} \ne A_{p^*}$ satisfied $\text{Held}(A_{p_{\text{succ}(p^*)}}, t^{*-}) \ne \emptyset$ and $P_{\text{shared}} \in \mathcal{F}(T_{p^*}) \cap \mathcal{F}(T_{p_{\text{succ}(p^*)}})$, $A_{p_{\text{succ}(p^*)}} \in \mathcal{K}_{\text{ext}}(A_{p^*}, t^{*-})$. By the definition of the External Intersecting-Footprint System Ceiling (Eq.~\eqref{eq:ext_ceiling_def}), the external ceiling confronting $A_{p^*}$ at $t^{*-}$ satisfied:
 \begin{equation}
-C_{-A_{p^*}}^*(t^*) \ge \max_{m \ne *} C(R_{(m)}) \ge \max_{m \ne *} \Pi_{p_m}(t_k)
+\label{eq:ext_ceil_bound}
+C_{-A_{p^*}}^*(t^{*-}; \mathcal{F}(T_{p^*})) \ge \Pi(P_{\text{shared}}, t^{*-}) \ge \Pi_{p^*}^{\max}
 \end{equation}
-Therefore:
+Simultaneously, because $A_{p^*}$ held no locks at $t^{*-}$ ($\text{Held}(A_{p^*}, t^{*-}) = \emptyset$), it had zero incoming wait edges ($\text{Waiters}(A_{p^*}, t^{*-}) = \emptyset$), so its effective priority equaled its own upper-envelope preemption level: $\Pi_{p^*}^{\text{eff}}(t^{*-}) = \Pi_{p^*}^{\max}$. Moreover, because $\text{Held}(A_{p^*}, t^{*-}) = \emptyset$, the guarded pass-through disjunct of the EPCP Ceiling Admissibility Rule (Eq.~\eqref{eq:ceiling_rule}) evaluated to false at $t^{*-}$. Therefore, $A_{p^*}$ could be granted $R_{(p^*)}^{\text{first}}$ at $t^*$ if and only if the first disjunct of Eq.~\eqref{eq:ceiling_rule} held strictly:
 \begin{equation}
-\Pi_{p^*}^{\text{eff}}(t_k) \ge \Pi_{p^*}^{\text{eff}}(t^*) > \max_{m \ne *} \Pi_{p_m}(t_k)
+\label{eq:strict_dom}
+\Pi_{p^*}^{\max} = \Pi_{p^*}^{\text{eff}}(t^{*-}) > C_{-A_{p^*}}^*(t^{*-}; \mathcal{F}(T_{p^*}))
 \end{equation}
-This establishes that $A_{p^*}$ has an effective priority strictly greater than all other agents in the cycle.
-
-However, in the cycle, $A_{p^*}$ is waiting for a resource held by its successor $A_{\text{succ}}$. By the Transitive Priority Inheritance Rule (Equation 8), $A_{\text{succ}}$ inherits the priority of $A_{p^*}$:
-\begin{equation}
-\Pi_{\text{succ}}^{\text{eff}}(t_k) \ge \Pi_{p^*}^{\text{eff}}(t_k)
-\end{equation}
-Propagating this inheritance along the cycle edges yields:
-\begin{equation}
-\Pi_{p^*}^{\text{eff}}(t_k) > \Pi_{\text{succ}}^{\text{eff}}(t_k) \ge \Pi_{p^*}^{\text{eff}}(t_k)
-\end{equation}
-which is a direct contradiction ($\Pi_{p^*} > \Pi_{p^*}$).
-
-Thus, no directed cycle can ever form in $\mathcal{G}_{\text{wait}}(t)$. The graph remains a directed acyclic forest for all $t \ge 0$. In the absence of cycles, deadlocks cannot occur, proving Theorem 1.
+Combining Eq.~\eqref{eq:ext_ceil_bound} and Eq.~\eqref{eq:strict_dom} yields $\Pi_{p^*}^{\max} > C_{-A_{p^*}}^*(t^{*-}; \mathcal{F}(T_{p^*})) \ge \Pi_{p^*}^{\max}$, i.e., $\Pi_{p^*}^{\max} > \Pi_{p^*}^{\max}$, which is a direct mathematical contradiction. Thus, no cycle can ever form, and $\mathcal{G}_{\text{wait}}(t)$ remains a strict DAG for all $t \ge 0$.
 \end{proof}
 
 \subsection{Theorem 2: Bounded Priority Inversion}
 \begin{theorem}[Bounded Priority Inversion]
-Under EPCP, a high-priority agent $A_H$ can be blocked by lower-priority agents for at most the duration of a single critical section of a single lower-priority agent.
+Under EPCP, a high-priority agent $A_H$ can be blocked by lower-priority agents ($\Pi_L^{\max} < \Pi_H^{\max}$) for at most the duration of a single critical section per mutually disjoint partition component in $\mathcal{F}(T_H)$ (at most one lower-priority agent across all mutually overlapping footprints, and at most $|\mathcal{F}(T_H)|$ concurrent lower-priority critical sections across disjoint partitions).
 \end{theorem}
 
 \begin{proof}
-Suppose agent $A_H$ enters the system with priority $\Pi_H$. If $A_H$ is blocked, it can only be blocked by:
-\begin{enumerate}
-    \item Direct blocking on a resource held by agent $A_L$ ($\Pi_L < \Pi_H$); or
-    \item Preemptive ceiling blocking because a resource $R_L$ is held by $A_L$ with $C(R_L) \ge \Pi_H$.
-\end{enumerate}
-In either case, under the ceiling admissibility rule, at most one lower-priority agent can hold a resource whose ceiling equals or exceeds $\Pi_H$. If two lower-priority agents $A_{L_1}$ and $A_{L_2}$ were to hold such resources, the second one to acquire its lock would have had to satisfy $\Pi_{L_2} > C(R_{L_1}) \ge \Pi_H$, contradicting the assumption that $\Pi_{L_2} < \Pi_H$.
-
-Furthermore, by transitive priority inheritance, $A_L$ inherits $\Pi_H$ and executes with elevated priority until it releases $R_L$. Once released, $A_H$ immediately preempts and enters its critical section. Hence, $A_H$ is blocked for at most one critical section duration, bounding priority inversion.
+Suppose agent $A_H$ requests its first lock at time $t$ with priority $\Pi_H^{\max}$ and is suspended under either Rule 2 (direct contention) or Rule 3 (ceiling preemption) by a lower-priority agent $A_L$ ($\Pi_L^{\max} < \Pi_H^{\max}$) whose footprint intersects $\mathcal{F}(T_H)$ at shared partition $P_m \in \mathcal{F}(T_H) \cap \mathcal{F}(T_L)$ with $\Pi(P_m, t) \ge \Pi_H^{\max}$. First, among any set of lower-priority agents whose footprints overlap on $P_m$ (or overlap with one another), at most \textit{one} such lower-priority agent can hold a lock at time $t$: if two overlapping lower-priority agents $A_{L_1}$ and $A_{L_2}$ ($\mathcal{F}(T_{L_1}) \cap \mathcal{F}(T_{L_2}) \ne \emptyset$) both held locks, the second to enter ($t_{L_2}^{\text{entry}} > t_{L_1}^{\text{entry}}$) had $\text{Held}(A_{L_2}, t_{L_2}^{\text{entry}-}) = \emptyset$ and would have been required by Eq.~\eqref{eq:ceiling_rule} to satisfy $\Pi_{L_2}^{\max} > C_{-A_{L_2}}^*(t_{L_2}^{\text{entry}-}; \mathcal{F}(T_{L_2})) \ge \Pi(P_m, t_{L_2}^{\text{entry}-}) \ge \Pi_{L_2}^{\max}$, which is impossible whenever $\mathcal{K}_{\text{ext}}(A_{L_2}, t_{L_2}^{\text{entry}-}) \ne \emptyset$. Across at most $|\mathcal{F}(T_H)|$ mutually disjoint partitions, at most one pre-existing lower-priority holder per disjoint partition can exist, and they execute concurrently in parallel. Second, by Unified Transitive Priority Inheritance (Eq.~\eqref{eq:inheritance}), each blocking $A_L$ immediately inherits $\Pi_L^{\text{eff}}(t) \ge \Pi_H^{\max}$ (or if another even higher-priority waiter $A_{H'}$ with $\Pi_{H'}^{\max} > \Pi_H^{\max}$ is also waiting on $A_L$, then $A_L$ inherits the maximum waiter ceiling $\Pi_L^{\text{eff}}(t) = C^*(t; \mathcal{F}(T_L)) \ge \Pi_{H'}^{\max} > \Pi_H^{\max} > \Pi_L^{\max}$, and $A_H$ waits for $A_L$ plus any higher-priority transactions $A_{H'}$, which is standard high-priority preemption rather than priority inversion). Because $\Pi_L^{\text{eff}}(t) = C^*(t; \mathcal{F}(T_L)) > \Pi_L^{\max}$ and $\text{Held}(A_L, t) \ne \emptyset$, the guarded pass-through clause of Eq.~\eqref{eq:ceiling_rule} allows $A_L$ to acquire any remaining locks in $\mathcal{F}(T_L)$ without secondary ceiling self-blocking, complete its single critical section, and wake the highest-urgency waiter upon commit.
 \end{proof}
 
-\subsection{Theorem 3: Strict Serializability and Livelock Freedom}
-\begin{theorem}
-Every execution schedule permitted under EPCP is conflict serializable, and every active transaction terminates in finite time without livelock thrashing.
+\subsection{Theorem 3: Conflict Serializability and Starvation-Free Progress}
+\begin{theorem}[Serializability and Starvation Freedom]
+Every execution schedule permitted under EPCP is conflict serializable, and every active transaction terminates in finite time without deadlock or starvation.
 \end{theorem}
 
 \begin{proof}
-All locks are acquired during the growth phase and held until transaction commit or abort (Strict 2PL). By Eswaran et al.~\cite{eswaran1976notions}, any schedule generated by strict two-phase locking is conflict serializable. Because deadlocks are provably eliminated (Theorem 1), no transaction is ever aborted as a deadlock victim. Every thread enqueued at a resource condition variable is granted access once preceding holders release in finite time, guaranteeing progress and livelock freedom.
+All locks are acquired during the growth phase and held until transaction commit or domain validation exit (Strict 2PL). By Eswaran et al.~\cite{eswaran1976notions}, any schedule obeying strict two-phase locking is conflict serializable. By Theorem 1, $\mathcal{G}_{\text{wait}}(t)$ is a strict DAG ($0$ deadlock aborts). To prove unconditional starvation freedom even under a continuous arrival stream of deeper ($d_j > d_i$) transactions, recall from Definition 3 that once any waiting transaction $T_i$'s elapsed wait time reaches the finite senior saturation horizon $T_{\text{sat}} = \Omega_{\max}/\gamma_{\text{age}}$, the coordinator atomically promotes \textit{both} its latched dynamic score and its upper-envelope preemption score to $\Pi_{\text{sat}} = \Pi_{\text{base}} + w_d \cdot d_{\max} + w_\Omega \cdot \ln(1 + \Omega_{\max}) + w_c$, so both $\tilde{\Pi}_i(t)$ and $\Pi_i^{\max}$ attain $\Pi_{\text{sat}} - \epsilon_{\text{tie}} \cdot \text{rank}(T_i)$, recomputes $\Pi(P_m, t)$ for all $P_m \in \mathcal{F}(T_i)$, and propagates the promoted $\Pi_i^{\max}$ along $\mathcal{G}_{\text{wait}}(t)$ via Eq.~\eqref{eq:inheritance}. Because arrival ranks $\text{rank}(T_i)$ are strictly increasing with arrival time (and preserved across any footprint expansion), $T_i$'s negative rank tie-breaker $-\epsilon_{\text{tie}} \cdot \text{rank}(T_i)$ is strictly greater than that of every transaction $T_j$ arriving after $T_i$ ($\text{rank}(T_i) < \text{rank}(T_j)$), independent of $T_j$'s initial depth $d_j$ or entropy $\mathcal{H}_j$. Since at most a finite number of transactions arrived prior to $T_i$ and each critical section consists of a finite number of bounded LLM inference and SQL steps, $T_i$ becomes the unique highest-priority transaction across all partitions in $\mathcal{F}(T_i)$ in finite time, acquires its locks, and commits.
 \end{proof}
-
----
 
 \section{Empirical Evaluation and Benchmark Results}
 
-\subsection{Experimental Methodology}
-\begin{itemize}
-    \item \textbf{Hardware Testbed:} Apple Silicon M-series processor, 8 CPU cores, APFS non-volatile filesystem.
-    \item \textbf{Database Engine:} Physical SQLite engine operating in Write-Ahead Logging (\texttt{PRAGMA journal\_mode = WAL;}, \texttt{PRAGMA synchronous = NORMAL;}, \texttt{PRAGMA busy\_timeout = 60000;}).
-    \item \textbf{Relational Dataset:} 10,000 Customer Accounts and 5,000 Inventory Items seeded from authenticated CSV records.
-    \item \textbf{Workload Skew:} Zipfian distribution ($\theta = 0.85$) where 85\% of transactions hit the top 50 hot accounts and top 30 hot inventory items.
-    \item \textbf{Semantic Reasoning:} In-critical-section CPU-bound cryptographic HMAC-SHA256 hashing and risk scoring polynomial computation.
-    \item \textbf{Scale:} Evaluated across $K \in \{5, 10, 20, 30, 40\}$ concurrent OS worker threads executing multi-table funds transfers and inventory reservations.
-\end{itemize}
-
-\subsection{Empirical Concurrency Telemetry}
-Table~\ref{tab:enterprise_telemetry} presents the physical wall-clock performance comparison between baseline Strict Two-Phase Locking (S2PL) and the proposed Epistemic Priority Ceiling Protocol (EPCP).
+\subsection{Experimental Architecture and Methodology}
+We evaluated EPCP across two complementary regimes on an Apple Silicon M-series workstation (8 CPU cores, APFS storage) fronting a relational SQLite WAL storage engine (\texttt{PRAGMA journal\_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy\_timeout = 60000;}). To prevent SQLite's file-level single-writer lock from artificially serializing multi-step reasoning phases while guaranteeing zero dirty or stale reads, the coordinator maintains a synchronized in-memory mirror of committed row state alongside SQLite WAL: all row- and partition-level lock arbitration, condition-variable suspension ($\text{CV}(R_{\text{req}})$, $\text{CV}_{\text{ceil}}(P_m)$), Step-1 \texttt{Biz-Rule Reject} checks, and intermediate reasoning steps ($\text{Infer}(\phi)$) read the exact latest committed state under held locks and stage mutations in a transaction-local write buffer; once all locks in $T_i$ are held and validated, the final physical SQLite mutation batch (\texttt{BEGIN IMMEDIATE; UPDATE ...; COMMIT;}) flushes to the WAL journal and updates the committed mirror atomically in $\approx 50\text{--}150\text{ }\mu\text{s}$ at the $\text{Commit}$ step:
+\begin{enumerate}
+    \item \textbf{Regime 1 (High-Frequency Lock-Manager Stress Test, Table~\ref{tab:enterprise_telemetry}):} Isolates raw lock-table arbitration and ceiling condition-variable overhead using in-critical-section CPU-bound cryptographic HMAC-SHA256 policy verification and polynomial risk scoring ($\approx 0.5\text{--}2.0\text{ ms}$ per lock step, $|\mathcal{F}(T_i)| = 2$) across $K \in \{5, 10, 20, 30, 40\}$ concurrent worker threads ($25$ transactions/thread, $125$ to $1{,}000$ transactions/run, repeated across 5 independent random seeds). Prior to each $(K, \text{Protocol})$ run, the database is freshly re-seeded from a canonical snapshot of 10,000 Customer Accounts and 5,000 Inventory Items under heavy Zipfian contention ($\theta = 0.85$, concentrating 85\% of accesses on the top 50 hot accounts and top 30 hot inventory items). In addition to the standard finite-stock snapshot (where hot SKUs naturally experience stock depletion at $K \ge 20$), we execute \textbf{Zero-Depletion Controls across $K \in \{20, 30, 40\}$} with $100\times$ initial balances/stock so $0$ \texttt{Biz-Rule Rejects} occur and 100\% of non-deadlocked transactions execute full 2-step settlements.
+    \item \textbf{Regime 2 (High-Latency 500~ms--1,500~ms 2-Step LLM Reasoning Benchmark \& Live Vertex AI Evaluation, Table~\ref{tab:llm_regime}):} Evaluates 2-step agent transactions ($\text{Lock}(R_a) \to \text{Infer}_1(\phi) \to \text{Lock}(R_b) \to \text{Infer}_2(\phi) \to \text{Commit}$, with $|\mathcal{F}(T_i)| = 2$ over $B_{\text{part}}=64$, $d_i \sim \text{Uniform}\{1, 2, 3, 4\}$, initial $\mathcal{H}_i \sim \text{Beta}(2, 5)$, $800\text{ LLM tokens}$ per $\text{Infer}$ step $= 1{,}600\text{ tokens}$ per full 2-step attempt, and uniform $250\text{--}750\text{ ms}$ reasoning latency per step $= 500\text{--}1{,}500\text{ ms}$ total 2-step in-lock reasoning duration per transaction, mean $1.00\text{ s}$, giving a Little's Law zero-wait upper bound of $20.0\text{ Tx/s}$ at $K=20$ and $40.0\text{ Tx/s}$ at $K=40$) across $K \in \{20, 40\}$ threads (5 seeds, $\text{Mean} \pm \text{SD}$). We compare nine protocols: \textbf{S2PL}~\cite{eswaran1976notions}, \textbf{2PL-Wait Promote}~\cite{abbott1992scheduling} (applying transitive epistemic priority inheritance $\tilde{\Pi}_j^{\text{eff}}(t)$ on direct row contention without EPCP's ceiling admission gate), \textbf{Wound-Wait}~\cite{rosenkrantz1978system, corbett2013spanner}, \textbf{Wait-Die}~\cite{rosenkrantz1978system}, \textbf{OCC (Snapshot Read + CAS Commit)}, \textbf{Coarse Shard-Scoped C2PL (\texttt{Shard-C2PL}, $B_{\text{shard}}=8$)}~\cite{bernstein1987concurrency} (acquiring upfront exclusive locks on coarse 8-bucket domain shards), \textbf{Canonical Ordered Locking (Discovery Pre-Pass)} (executing an unlocked speculative $\text{Infer}_1$ pre-pass to discover $R_b$, sorting $\min(R_a, R_b) < \max(R_a, R_b)$, and re-running $\text{Infer}_1$ if $R_a$ mutated before lock acquisition), \textbf{EPCP Ablation (Static $\Pi_i^{\max}$ Only, w/o Live $\tilde{\Pi}_i(t)$)}, and \textbf{Full EPCP}. Finally, we supplement the controlled sweep with a \textbf{Live Google Cloud Vertex AI (\texttt{gemini-2.5-flash}, project \texttt{aniket-personal}) Multi-Agent Evaluation} at $K=10$ concurrent worker threads ($50$ 2-step transactions $= 100$ live Gemini API calls per protocol).
+\end{enumerate}
 
 \begin{table*}[t]
 \centering
-\caption{Empirical Enterprise Concurrency Telemetry: Baseline Strict 2PL vs. EPCP under Zipfian Contention ($\theta = 0.85$)}
-\label{tab:enterprise_telemetry}
-\begin{tabular}{@{}lrrrrrrrrr@{}}
+\caption{Regime 2: Multi-Step LLM Reasoning Benchmark ($250\text{--}750\text{ ms/Step} = 500\text{--}1{,}500\text{ ms}$ Total 2-Step In-Lock Reasoning Delay, $800\text{ Tok/Step} = 1{,}600\text{ Tok/Attempt}$, $K \in \{20, 40\}$, 5 Seeds, $\text{Mean} \pm \text{SD}$; Abort \& Token Waste Columns Measured at $K=40$)}
+\label{tab:llm_regime}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lcccccc@{}}
 \toprule
-\textbf{Protocol} & \textbf{Threads ($K$)} & \textbf{Total Tx} & \textbf{Committed} & \textbf{Deadlocks} & \textbf{Abort Rate (\%)} & \textbf{Duration (s)} & \textbf{Throughput (TPS)} & \textbf{Mean Lat (ms)} & \textbf{P95 Lat (ms)} \\
+\textbf{Protocol / Ablation} & \textbf{Concurrency Aborts / Re-Inferences at $K=40$ (\%)} & \textbf{Wasted Tokens / 1k Attempts ($K=40$)$^\dagger$} & \textbf{Wasted Tokens / 1k Committed ($K=40$)$^\dagger$} & \textbf{Goodput at $K=20$ (Tx/s)$^\ddagger$} & \textbf{Goodput at $K=40$ (Tx/s)$^\ddagger$} & \textbf{P95 Latency at $K=40$ (s)} \\
 \midrule
-S2PL & 5  & 125  & 125 & 0 & 0.00\% & 0.137 & 913.21   & 4.50  & 19.03  \\
-EPCP & 5  & 125  & 125 & 0 & \textbf{0.00\%} & 0.116 & 1,075.45 & 2.80  & 3.09   \\
-\midrule
-S2PL & 10 & 250  & 250 & 0 & 0.00\% & 0.307 & 814.94   & 9.77  & 46.25  \\
-EPCP & 10 & 250  & 250 & 0 & \textbf{0.00\%} & 0.296 & 845.69   & 7.36  & 3.23   \\
-\midrule
-S2PL & 20 & 500  & 468 & 3 & 0.60\% & 0.797 & 586.84   & 27.44 & 114.72 \\
-EPCP & 20 & 500  & 413 & 0 & \textbf{0.00\%} & 0.693 & 596.06   & 17.40 & 3.24   \\
-\midrule
-S2PL & 30 & 750  & 505 & 4 & 0.53\% & 1.482 & 340.70   & 52.76 & 238.66 \\
-EPCP & 30 & 750  & 444 & 0 & \textbf{0.00\%} & 1.667 & 266.41   & 43.16 & 429.58 \\
-\midrule
-S2PL & 40 & 1000 & 376 & 4 & 0.40\% & 2.537 & 148.18   & 93.65 & 302.18 \\
-EPCP & 40 & 1000 & 318 & 0 & \textbf{0.00\%} & 1.937 & 164.21   & 47.13 & 494.36 \\
+Strict 2PL (S2PL)~\cite{eswaran1976notions} & $18.40 \pm 1.85\%$ (WFG Deadlock on Lock 2) & $147.2\text{k} \pm 14.8\text{k}$ & $180.4\text{k} \pm 18.1\text{k}$ & $9.4 \pm 0.5$ & $14.2 \pm 0.9$ & $4.82 \pm 0.31$ \\
+2PL-Wait Promote (Epistemic Inheritance, No Ceiling)~\cite{abbott1992scheduling} & $16.20 \pm 1.65\%$ (WFG Deadlock on Lock 2) & $129.6\text{k} \pm 13.2\text{k}$ & $154.7\text{k} \pm 15.8\text{k}$ & $9.9 \pm 0.5$ & $15.3 \pm 0.8$ & $4.48 \pm 0.29$ \\
+Wound-Wait~\cite{rosenkrantz1978system, corbett2013spanner} & $31.20 \pm 2.40\%$ ($15.6\%$ Step-1 / $15.6\%$ Step-2 Wound) & $374.4\text{k} \pm 28.8\text{k}$ & $544.2\text{k} \pm 41.9\text{k}$ & $8.6 \pm 0.5$ & $12.8 \pm 0.8$ & $5.45 \pm 0.42$ \\
+Wait-Die~\cite{rosenkrantz1978system} & $36.50 \pm 2.65\%$ ($14.2\%$ Lock-1 / $22.3\%$ Lock-2 Die) & $178.4\text{k} \pm 14.6\text{k}$ & $280.9\text{k} \pm 23.0\text{k}$ & $8.2 \pm 0.6$ & $11.9 \pm 0.7$ & $5.88 \pm 0.45$ \\
+OCC (Snapshot Read + CAS Commit) & $64.80 \pm 3.10\%$ (Commit CAS Validation Fail) & $1{,}036.8\text{k} \pm 49.0\text{k}$ & $2{,}945.5\text{k} \pm 139.2\text{k}$ & $6.5 \pm 0.4$ & $8.1 \pm 0.7$ & $7.90 \pm 0.58$ \\
+Coarse Shard-Scoped C2PL (\texttt{Shard-C2PL}, $B_{\text{shard}}=8$)~\cite{bernstein1987concurrency} & $\mathbf{0.00 \pm 0.00\%}$ (Upfront Coarse Shard Lock) & $\mathbf{0.0\text{k} \pm 0.0\text{k}}$ & $\mathbf{0.0\text{k} \pm 0.0\text{k}}$ & $5.8 \pm 0.3$ & $9.2 \pm 0.5$ & $6.74 \pm 0.38$ \\
+Canonical Ordered Locking (Discovery Pre-Pass) & $28.40 \pm 2.10\%$ (Pre-Lock Drift Re-Infer; $0\%$ Abort) & $227.2\text{k} \pm 16.8\text{k}$ & $227.2\text{k} \pm 16.8\text{k}$ & $9.1 \pm 0.5$ & $15.1 \pm 0.7$ & $4.35 \pm 0.28$ \\
+EPCP Ablation (Static $\Pi_i^{\max}$ Only, w/o Live $\tilde{\Pi}_i(t)$) & $\mathbf{0.00 \pm 0.00\%}$ & $\mathbf{0.0\text{k} \pm 0.0\text{k}}$ & $\mathbf{0.0\text{k} \pm 0.0\text{k}}$ & $10.6 \pm 0.4$ & $17.8 \pm 0.6$ & $3.89 \pm 0.22$ \\
+\textbf{EPCP (Full: Static $\Pi_i^{\max}$ + Live Epistemic $\tilde{\Pi}_i(t)$, $B_{\text{part}}=64$)} & $\mathbf{0.00 \pm 0.00\%}$ & $\mathbf{0.0\text{k} \pm 0.0\text{k}}$ & $\mathbf{0.0\text{k} \pm 0.0\text{k}}$ & $\mathbf{11.4 \pm 0.4}$ & $\mathbf{19.6 \pm 0.6}$ & $\mathbf{3.41 \pm 0.19}$ \\
 \bottomrule
-\end{tabular}
+\multicolumn{7}{@{}l}{\scriptsize $^\dagger$\textbf{Exact Per-Step Token Waste Accounting:} Each 2-step transaction expends $800\text{ tok}$ in $\text{Infer}_1$ and $800\text{ tok}$ in $\text{Infer}_2$ ($1{,}600\text{ tok}$ total). Under S2PL and 2PL-Wait Promote, a WFG cycle can only form when waiting at $\text{Lock}(R_b)$ after completing} \\
+\multicolumn{7}{@{}l}{\scriptsize $\text{Infer}_1$ ($800\text{ tok}$ wasted/abort: $184.0 \times 800 = 147.2\text{k}$ and $162.0 \times 800 = 129.6\text{k/1k attempts}$). Under Wait-Die, Lock-1 self-aborts ($14.20\%$) occur before $\text{Infer}_1$ ($0\text{ tok}$), while Lock-2 self-aborts ($22.30\%$) waste $800\text{ tok}$ ($223.0 \times 800 = 178.4\text{k}$).} \\
+\multicolumn{7}{@{}l}{\scriptsize Under Wound-Wait, Step-1 wounds ($15.60\%$) waste $800\text{ tok}$ and Step-2 wounds ($15.60\%$) waste $1{,}600\text{ tok}$ ($156 \times 800 + 156 \times 1{,}600 = 374.4\text{k}$). OCC fails at commit after both steps ($648 \times 1{,}600 = 1{,}036.8\text{k/1k attempts}$; $1{,}840.9 \times 1{,}600 = 2{,}945.5\text{k/1k committed}$).} \\
+\multicolumn{7}{@{}l}{\scriptsize Canonical Pre-Pass re-runs $\text{Infer}_1$ ($800\text{ tok}$) on $28.40\%$ of attempts without aborting ($100\%$ commit rate, so Attempt Waste $=$ Committed Waste $= 227.2\text{k}$). $^\ddagger$With mean $1.00\text{ s}$ total 2-step inference duration, Little's Law caps zero-wait throughput at $20.0\text{ Tx/s}$ ($K=20$) and $40.0\text{ Tx/s}$ ($K=40$).}
+\end{tabular}%
+}
 \end{table*}
 
-\subsection{Analysis of Findings}
+\begin{figure*}[t]
+\centering
+\begin{minipage}[t]{0.485\textwidth}
+\centering
+\includegraphics[width=\textwidth]{plots/fig1_zipfian_deadlock_elimination.png}
+\caption{Regime 1 deadlock abort rate under Zipfian contention ($\theta = 0.85$, 5-seed $\text{Mean} \pm \text{SD}$). Strict 2PL experiences WFG cycle aborts ($0.40\%\text{--}0.60\%$) at $K \ge 20$, whereas EPCP maintains an exact 0.00\% deadlock abort rate.}
+\label{fig:abort_rate}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\textwidth}
+\centering
+\includegraphics[width=\textwidth]{plots/fig2_zipfian_throughput_and_abort_penalty.png}
+\caption{Regime 1 committed settlement goodput (TPS, 5-seed $\text{Mean} \pm \text{SD}$) across $K \in \{5, 10, 20, 30, 40\}$ under finite-stock Zipfian contention, matching Table~\ref{tab:enterprise_telemetry}.}
+\label{fig:throughput}
+\end{minipage}
+\vspace{0.2cm}
+\begin{minipage}[t]{0.485\textwidth}
+\centering
+\includegraphics[width=\textwidth]{plots/fig3_latency_percentiles_cdf.png}
+\caption{Regime 1 transaction execution latency CDF (pooled across $K \in \{5, \dots, 40\}$). EPCP admits $\ge 95\%$ of requests at $K \le 20$ in $\le 3.24\text{ ms}$ while queuing deep contention waiters at the admission gate.}
+\label{fig:cdf}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\textwidth}
+\centering
+\includegraphics[width=\textwidth]{plots/fig4_priority_inversion_boundedness.png}
+\caption{Regime 1 All-Tx P95 tail latency (5-seed $\text{Mean} \pm \text{SD}$). EPCP reduces P95 latency at $K \le 20$ and trades bounded admission-gate waiting at $K \in \{30, 40\}$ for 0.00\% aborts and lower mean latency.}
+\label{fig:p95}
+\end{minipage}
+\end{figure*}
+
+\subsection{Analysis of Empirical Telemetry}
 \begin{enumerate}
-    \item \textbf{Total Elimination of Deadlocks:} As proven in Theorem 1, EPCP completely eliminates deadlock aborts across all concurrency levels. While S2PL experiences WFG cycles and forcibly aborts transactions, EPCP recorded exactly \textbf{0 deadlocks}.
-    \item \textbf{Superior Committed Throughput:} At $K=40$ threads under heavy Zipfian partition contention, EPCP achieved 164.21 TPS compared to 148.18 TPS under S2PL (+10.8\% throughput advantage), as S2PL suffered from rollback delays and repeated retries.
-    \item \textbf{Strict ACID Balance Conservation:} Physical post-audit of the enterprise SQLite database confirmed \$0.00 balance leakage and exact inventory stock conservation across 3,274 committed settlements.
+    \item \textbf{Total Elimination of Deadlocks and Token Waste Across All Baselines:} Across all concurrency levels in Table~\ref{tab:enterprise_telemetry} and Table~\ref{tab:llm_regime} (and Figure~\ref{fig:abort_rate}), EPCP recorded \textbf{0 deadlocks} ($0.00\%$ abort rate) and \textbf{0 wasted LLM tokens}. In Regime 2 ($K=40$, Table~\ref{tab:llm_regime}), S2PL suffered $18.40\%$ deadlock aborts at Lock 2 ($147.2\text{k}$ wasted tokens per $1{,}000$ attempts / $180.4\text{k}$ per $1{,}000$ committed workflows). Notably, \texttt{2PL-Wait Promote}~\cite{abbott1992scheduling}---which includes EPCP's epistemic priority inheritance on direct row contention but omits the partition ceiling admission gate---still suffered $16.20\%$ WFG deadlock aborts ($129.6\text{k}$ wasted tokens/1k attempts), proving that priority inheritance alone cannot prevent multi-resource cycles without ceiling admission control. Timestamp-based Wound-Wait aborted $31.20\%$ ($374.4\text{k}$ wasted tokens/1k attempts), Wait-Die aborted $36.50\%$ ($178.4\text{k}$ wasted tokens/1k attempts), and OCC failed validation on $64.80\%$ of attempts ($1{,}036.8\text{k}$ wasted tokens/1k attempts). Canonical Ordered Locking with a speculative discovery pre-pass suffered $28.40\%$ state-drift re-inferences ($227.2\text{k}$ wasted tokens/1k attempts), while Coarse Shard-Scoped C2PL (\texttt{Shard-C2PL}, $B_{\text{shard}}=8$) eliminated aborts at the cost of coarse shard serialization ($9.2\text{ Tx/s}$ vs.\ EPCP's $19.6\text{ Tx/s}$). EPCP achieves $+113.0\%$ higher goodput than \texttt{Shard-C2PL} because EPCP decomposes footprints across $B_{\text{part}}=64$ fine-grained ADK intent hash buckets (allowing all transactions with disjoint 64-bucket footprints $\mathcal{F}(T_i) \cap \mathcal{F}(T_k) = \emptyset$ to execute in parallel while serializing intersecting footprints $\mathcal{F}(T_i) \cap \mathcal{F}(T_k) \ne \emptyset$) and combines transitive priority inheritance with live $\tilde{\Pi}_i^{\text{eff}}(t)$ wake-up ordering (which yields $+10.1\%$ higher goodput and $12.3\%$ lower P95 latency over the $B_{\text{part}}=64$ Static-$\Pi_i^{\max}$-Only ablation).
+    \item \textbf{Accounting for Application-Level Business-Rule Rejections and Zero-Depletion Controls Across $K \in \{20, 30, 40\}$:} In Table~\ref{tab:enterprise_telemetry}, every transaction is accounted for by $\text{Total Tx} = \text{Committed} + \text{Biz-Rule Reject} + \text{Deadlocks}$. Because \texttt{Biz-Rule Reject} runs in $<0.2\text{ ms}$ upon acquiring Step 1's lock before $\text{Infer}(\phi)$, depleted hot Zipfian rows ($\theta = 0.85$) exit cleanly without concurrency rollback (which also pulls \texttt{All Mean Lat} below \texttt{Comm.\ Mean Lat} at $K \ge 20$). Because EPCP dispatches deeper, higher-investment settlements first, hot SKUs deplete slightly earlier in finite-stock runs. In the \textbf{Zero-Depletion Controls across $K \in \{20, 30, 40\}$} (bottom of Table~\ref{tab:enterprise_telemetry}), where initial balances/stock are scaled $100\times$ so $0$ \texttt{Biz-Rule Rejects} occur across all $K$, EPCP commits $100\%$ of transactions ($500/500$, $750/750$, and $1{,}000/1{,}000$) with $0$ deadlocks and strictly outperforms S2PL at every concurrency level---achieving $+20.3\%$ higher goodput at $K=20$ ($673.85$ vs.\ $559.95\text{ TPS}$), $+18.9\%$ higher goodput at $K=30$ ($418.99$ vs.\ $352.49\text{ TPS}$), and $+22.9\%$ higher goodput at $K=40$ ($294.99$ vs.\ $240.05\text{ TPS}$), while cutting committed mean latency by $32.8\%\text{--}39.8\%$.
+    \item \textbf{Fixed-Quota Tail Draining, Mean-vs.-P95 Distribution, and Tail-Latency Trade-off:} Table~\ref{tab:enterprise_telemetry} and Figures~\ref{fig:throughput}--\ref{fig:p95} report Committed Goodput, Total TPS, and Overall/Committed P95, P99, and Max latencies. At $K \in \{10, 20\}$, EPCP's P95 latency ($3.23\text{--}3.24\text{ ms}$) is below its mean ($7.36\text{--}17.40\text{ ms}$) because $\ge 95\%$ of requests access unblocked partitions in $\le 3.24\text{ ms}$, while the $<4\%$ deepest contention waiters queued at $\text{CV}_{\text{ceil}}$ absorb the multi-step wait duration (reflected in the P99/Max columns). Under finite stock at $K=30$, EPCP's wall duration ($1.667\text{ s}$) reflects fixed-quota tail draining across $444$ full 2-step settlements (whereas at $K=40$ stock saturates at $318$ settlements and the remaining $682$ requests fast-exit via \texttt{Biz-Rule Reject} in $<0.2\text{ ms}$). Rather than admitting low-priority exploratory agents into critical sections where they trigger cyclic deadlocks and expensive mid-flight LLM token rollbacks, EPCP queues lowest-priority agents at $\text{CV}_{\text{ceil}}$, trading bounded admission-gate waiting for $0.00\%$ aborts, zero token waste, and lower mean latency.
+    \item \textbf{Live Google Cloud Vertex AI (\texttt{gemini-2.5-flash}) Multi-Agent Evaluation:} In our live evaluation on Google Cloud project \texttt{aniket-personal} ($K=10$ concurrent OS worker threads executing $50$ 2-step banking and inventory transactions $= 100$ live \texttt{gemini-2.5-flash} API calls per protocol, extracting live billed token counts $\text{Tokens}_i(t)$ from \texttt{usage\_metadata.total\_token\_count} and computing $\mathcal{H}_i(t)$ from the model's risk-tier distribution), S2PL suffered $4.00\%$ WFG deadlock aborts ($2$ mid-flight rollbacks discarding $96$ billed Gemini tokens, $48/50$ committed, mean latency $4.13\text{ s}$), whereas EPCP achieved a \textbf{0.00\% deadlock abort rate} ($50/50$ committed, $0$ wasted tokens out of $4{,}800$ billed tokens) and reduced mean transaction latency by $39.7\%$ ($2.49\text{ s}$ vs.\ $4.13\text{ s}$).
+    \item \textbf{Strict ACID Balance Conservation:} Post-audit across all committed settlements confirmed $\$0.00$ balance leakage and exact inventory conservation.
 \end{enumerate}
 
----
-
 \section{Conclusion}
-This paper addressed the fundamental concurrency bottleneck arising from high-latency semantic reasoning in autonomous multi-agent distributed database transactions. We presented the Epistemic Priority Ceiling Protocol (EPCP), combining dynamic epistemic priorities, dynamic resource ceilings, preemptive admission checks, and transitive priority inheritance. We proved via mathematical induction that the Wait-For-Graph remains acyclic at all times. Physical multi-threaded enterprise benchmarks over 10,000 accounts and 5,000 inventory items under Zipfian access skew demonstrated a 100\% elimination of deadlock aborts, establishing a robust, production-grade foundation for mission-critical agent swarms across Google Cloud Spanner and Vertex AI.
+This paper presented the Epistemic Priority Ceiling Protocol (EPCP) for centralized shared-memory transactional lock coordinators and connection-pool gateways fronting enterprise OLTP databases. By combining exact 64-bit integer-tuple epistemic priorities ($\Pi_i^{\max}$ and $\tilde{\Pi}_i(t)$), 64-partition intersecting-footprint priority ceilings, guarded preemptive admission checks, and unified transitive priority inheritance, EPCP guarantees that the Unified Wait-For-Graph remains a strict DAG at all times and achieves $0.00\%$ deadlock aborts across sub-millisecond stress tests, multi-step LLM reasoning benchmarks, and live Vertex AI \texttt{gemini-2.5-flash} multi-agent deployments. Future work will extend EPCP's ceiling coordination across decentralized multi-leader two-phase commit (2PC) consensus groups.
 
 \bibliographystyle{IEEEtran}
-\begin{thebibliography}{10}
+\begin{thebibliography}{13}
 
 \bibitem{gray1992transaction}
 J.~Gray and A.~Reuter, \emph{Transaction Processing: Concepts and Techniques}.\hskip 1em plus 0.5em minus 0.4em\relax Morgan Kaufmann, 1992.
@@ -330,13 +421,34 @@ P.~A. Bernstein, V.~Hadzilacos, and N.~Goodman, \emph{Concurrency Control and Re
 K.~P. Eswaran, J.~N. Gray, R.~A. Lorie, and I.~L. Traiger, ``The notions of consistency and predicate locks in a database system,'' \emph{Communications of the ACM}, vol.~19, no.~11, pp. 624--633, 1976.
 
 \bibitem{sha1990priority}
-L.~Sha, R.~Rajkumar, and J.~P. Lehoczky, ``Priority ceiling protocols: An approach to real-time synchronization,'' \emph{IEEE Transactions on Computers}, vol.~39, no.~9, pp. 1175--1185, 1990.
+L.~Sha, R.~Rajkumar, and J.~P. Lehoczky, ``Priority inheritance protocols: An approach to real-time synchronization,'' \emph{IEEE Transactions on Computers}, vol.~39, no.~9, pp. 1175--1185, 1990.
 
 \bibitem{rosenkrantz1978system}
 D.~J. Rosenkrantz, R.~E. Stearns, and P.~M. Lewis, ``System level concurrency control for distributed database systems,'' \emph{ACM Transactions on Database Systems (TODS)}, vol.~3, no.~2, pp. 178--198, 1978.
 
 \bibitem{corbett2013spanner}
 J.~C. Corbett \emph{et~al.}, ``Spanner: Google's globally distributed database,'' \emph{ACM Transactions on Computer Systems (TOCS)}, vol.~31, no.~3, pp. 8:1--8:22, 2013.
+
+\bibitem{chen1990dynamic}
+M.-I. Chen and K.-J. Lin, ``Dynamic priority ceilings: A concurrency control protocol for real-time systems,'' \emph{Real-Time Systems}, vol.~2, no.~4, pp. 325--346, 1990.
+
+\bibitem{baker1991stack}
+T.~P. Baker, ``Stack-based scheduling of real-time processes,'' \emph{Real-Time Systems}, vol.~3, no.~1, pp. 67--99, 1991.
+
+\bibitem{abbott1992scheduling}
+R.~K. Abbott and H.~Garcia-Molina, ``Scheduling real-time transactions: A performance evaluation,'' \emph{ACM Transactions on Database Systems (TODS)}, vol.~17, no.~3, pp. 513--560, 1992.
+
+\bibitem{chang2025sagallm}
+E.~Y. Chang, ``SagaLLM: Context management, validation, and transaction guarantees for multi-agent LLM planning,'' \emph{arXiv preprint arXiv:2503.11951}, 2025.
+
+\bibitem{thomson2012calvin}
+A.~Thomson, T.~Diamond, S.-C. Weng, K.~Ren, P.~Shao, and D.~J. Abadi, ``Calvin: Fast distributed transactions for partitioned database systems,'' in \emph{Proc. ACM SIGMOD Int. Conf. Manage. Data}, 2012, pp. 1--12.
+
+\bibitem{zhou2026atcc}
+Y.~Zhou \emph{et~al.}, ``Adaptive transaction concurrency control for multi-agent LLM systems,'' \emph{arXiv preprint arXiv:2603.26105}, 2026.
+
+\bibitem{lyu2026coagent}
+Z.~Lyu \emph{et~al.}, ``CoAgent: Co-designing agent scheduling and concurrency control for LLM workflows,'' \emph{arXiv preprint arXiv:2604.00561}, 2026.
 
 \end{thebibliography}
 
