@@ -158,7 +158,7 @@ class EPCPEngine:
             else:
                 state.arrival_rank = self._next_rank
                 self._next_rank += 1
-                if state.start_time_sec <= 0.0:
+                if state.start_time_sec == 0.0:
                     state.start_time_sec = time.perf_counter()
 
             if footprint_partitions is not None:
@@ -167,12 +167,13 @@ class EPCPEngine:
             self._agents[state.agent_id] = state
             self._active_agents.add(state.agent_id)
 
-            dyn_p = state.compute_epistemic_priority(elapsed_sec=0.0)
+            init_elapsed = max(0.0, time.perf_counter() - state.start_time_sec)
+            dyn_p = state.compute_epistemic_priority(elapsed_sec=init_elapsed)
             max_p = state.compute_upper_envelope_priority()
             self._active_priorities[state.agent_id] = dyn_p
             self._effective_upper_priorities[state.agent_id] = max_p
             self._effective_upper_tuples[state.agent_id] = state.upper_envelope_tuple()
-            self._effective_dynamic_tuples[state.agent_id] = state.dynamic_priority_tuple(elapsed_sec=0.0)
+            self._effective_dynamic_tuples[state.agent_id] = state.dynamic_priority_tuple(elapsed_sec=init_elapsed)
 
             if state.declared_partitions:
                 self._agent_footprint_masks[state.agent_id] = footprint_to_bitmask(state.declared_partitions)
@@ -311,6 +312,8 @@ class EPCPEngine:
             for res_id, users in self._resource_users.items():
                 if agent_id in users:
                     self._recalculate_resource_ceiling(res_id)
+            if agent_id in self._wait_edges:
+                self._propagate_transitive_inheritance(agent_id)
 
     def _get_intersecting_ceiling_excluding(
         self, agent_id: str, req_resource_id: str
@@ -318,7 +321,9 @@ class EPCPEngine:
         """
         Computes External Intersecting-Footprint Ceiling C_{-A_i}^*(t; F(T_i)) and
         identifies all external lock-holding agents A_k != agent_id whose footprint
-        intersects F(T_i) (or shares potential resource usage).
+        intersects F(T_i) (or shares potential resource usage), as well as active lock
+        holders transitively blocking a higher-priority queued waiter on an intersecting
+        partition when Held(A_i, t) == empty.
         Returns:
             (max_external_ceiling, primary_blocking_holder, all_blocking_holders)
         """
@@ -328,6 +333,8 @@ class EPCPEngine:
 
         my_mask = self._agent_footprint_masks.get(agent_id, 0)
         active_p = self._active_priorities.get(agent_id, 1.0)
+        my_up_tuple = self._effective_upper_tuples.get(agent_id, (0, 0))
+        already_holding = bool(self._held_resources.get(agent_id))
 
         for res_id, res in self._resources.items():
             holder = res.current_holder_agent_id
@@ -338,11 +345,36 @@ class EPCPEngine:
                 if not intersects:
                     continue
                 c_val = res.ceiling_priority
+                for p in range(B_PART):
+                    if (my_mask & holder_mask) & (1 << p):
+                        c_val = max(c_val, self._partition_ceilings.get(p, 0.0))
                 if c_val > max_c:
                     max_c = c_val
                     primary_holder = holder
                 if c_val >= active_p:
                     blocking_holders.add(holder)
+
+        # Prevent staggered single-partition lower-priority arrivals from cutting ahead of a
+        # higher-priority (or T_sat-promoted) multi-partition waiter queued in G_wait(t)
+        if not already_holding and my_mask:
+            for waiter_id, waiter_targets in self._wait_edges.items():
+                if waiter_id == agent_id or not waiter_targets:
+                    continue
+                waiter_mask = self._agent_footprint_masks.get(waiter_id, 0)
+                shared_mask = my_mask & waiter_mask
+                if shared_mask != 0:
+                    waiter_up = self._effective_upper_tuples.get(waiter_id, (0, 0))
+                    if waiter_up > my_up_tuple:
+                        for p in range(B_PART):
+                            if shared_mask & (1 << p):
+                                p_ceil = self._partition_ceilings.get(p, 0.0)
+                                if p_ceil > max_c:
+                                    max_c = max(max_c, p_ceil, active_p)
+                        for h_id in waiter_targets:
+                            if h_id != agent_id and self._held_resources.get(h_id):
+                                blocking_holders.add(h_id)
+                                if primary_holder is None:
+                                    primary_holder = h_id
 
         if primary_holder and not blocking_holders:
             blocking_holders.add(primary_holder)
@@ -395,11 +427,11 @@ class EPCPEngine:
         """
         Acquires a lock under EPCP Rules 1-3 (Section 3.3):
           Rule 1 (Reentrancy): Immediate grant if already held by agent_id.
-          Rule 2 (Direct Contention): Suspend on CV(R_req) and add edge (A_i -> holder).
+          Rule 2 (Direct Contention): Suspend on CV(A_i) and bind edges to holder U B_ceil(A_i, t).
           Rule 3 (Ceiling Admissibility & Guarded Inheritance Pass-Through, Eq. 11):
                  Grant free resource iff active_p > C_{-A_i}^*(t; F(T_i)) OR
                  (Held(A_i, t) != empty and active_p >= C^*(t; F(T_i))).
-                 Otherwise suspend on CV_ceil and propagate transitive inheritance (Eq. 12).
+                 Otherwise suspend on CV(A_i) and propagate transitive inheritance (Eq. 12).
         """
         with self._mutex:
             if agent_id not in self._conditions:
@@ -444,7 +476,8 @@ class EPCPEngine:
                 # Guarded Inheritance Pass-Through Rule (Eq. 11):
                 # Initial entry (Held == empty) requires strict inequality active_p > sys_ceiling
                 # (or sys_ceiling == 0.0 when K_ext == empty).
-                # Once Held != empty, an agent owning or inheriting the top ceiling passes through.
+                # Once Held != empty, K_ext == empty implies sys_ceiling == 0.0 (first disjunct),
+                # and an agent owning or inheriting the top ceiling also passes through.
                 ceiling_test_passed = (
                     (active_p > sys_ceiling)
                     or (sys_ceiling == 0.0)
@@ -458,13 +491,15 @@ class EPCPEngine:
                     self._wait_edges.pop(agent_id, None)
                     return True
 
-                # Record Unified Wait-For-Graph edges (Rule 2 or Rule 3) and propagate inheritance
+                # Clear stale outgoing wait edges and bind unified Rule 2 U Rule 3 edges
+                self._wait_edges.pop(agent_id, None)
+                unified_blockers: Set[str] = set(all_blockers)
                 if not is_free and current_holder and current_holder != agent_id:
-                    self._wait_edges[agent_id] = {current_holder}
+                    unified_blockers.add(current_holder)
                 else:
-                    self._wait_edges[agent_id] = set(all_blockers)
                     self.preemptive_suspensions_count += 1
                     self.deadlocks_prevented_count += 1
+                self._wait_edges[agent_id] = unified_blockers
 
                 self._propagate_transitive_inheritance(agent_id)
 
@@ -474,13 +509,22 @@ class EPCPEngine:
                     self._wait_edges.pop(agent_id, None)
                     return False
 
-                cond.wait(timeout=remaining)
+                st = self._agents.get(agent_id)
+                if st and not st.promoted_saturated:
+                    ag_elapsed = max(0.0, time.perf_counter() - st.start_time_sec)
+                    time_to_sat = max(0.001, T_SAT_SEC - ag_elapsed)
+                    wait_slice = min(remaining, time_to_sat)
+                else:
+                    wait_slice = remaining
+
+                cond.wait(timeout=wait_slice)
 
     def expand_footprint_and_reregister(self, agent_id: str, new_partition: int):
         """
-        Handles safe out-of-footprint expansion (Section 2.1):
-        Releases held locks prior to any physical writes, expands F(T_i) <- F(T_i) U {new_partition},
-        and re-registers while preserving original arrival_rank and start_time_sec.
+        Handles safe out-of-footprint expansion (Section 2.1 & Algorithm 1 Lines 2-4):
+        Discards uncommitted local staged writes, releases held locks prior to any physical
+        writes while keeping agent_id in A_active(t) (so rank(T_i) is never rebased mid-flight),
+        expands F(T_i) <- F(T_i) U {new_partition}, and re-registers preserving (t_{start,i}, rank(T_i)).
         """
         with self._mutex:
             self._staged_writes.pop(agent_id, None)
@@ -490,11 +534,63 @@ class EPCPEngine:
                 st.declared_partitions.add(new_partition)
                 self.register_agent(st, footprint_partitions=st.declared_partitions, preserve_rank=True)
 
+    def execute_with_dynamic_footprint_recovery(
+        self,
+        agent_id: str,
+        step1_resource_id: str,
+        read_step1_state_fn: Any,
+        step1_infer_fn: Any,
+        discover_step2_resource_fn: Any,
+        commit_fn: Any,
+        timeout_sec: float = 3.0,
+    ) -> Tuple[bool, int, bool]:
+        """
+        Executes a 2-step agent transaction with automatic Section 2.1 / Algorithm 1
+        out-of-footprint rollback-and-expand recovery and SHA-256 state_version_digest
+        inference memoization replay.
+        Returns:
+            (committed_ok, total_inference_calls_executed, cache_replayed_on_restart)
+        """
+        infer_calls = 0
+        cache_replayed = False
+        while True:
+            ok1 = self.acquire_lock(agent_id, step1_resource_id, LockMode.EXCLUSIVE_WRITE, timeout_sec=timeout_sec)
+            if not ok1:
+                self.release_all_locks(agent_id, deregister_active=True)
+                return (False, infer_calls, cache_replayed)
+
+            row_state = read_step1_state_fn(step1_resource_id)
+            cached_out = self.lookup_memoized_inference(agent_id, "step1", row_state)
+            if cached_out is not None:
+                infer_out = cached_out
+                cache_replayed = True
+            else:
+                infer_out = step1_infer_fn(row_state)
+                infer_calls += 1
+                self.memoize_inference(agent_id, "step1", row_state, infer_out)
+
+            self.stage_write(agent_id, step1_resource_id, infer_out)
+            step2_resource_id = discover_step2_resource_fn(infer_out)
+
+            try:
+                ok2 = self.acquire_lock(agent_id, step2_resource_id, LockMode.EXCLUSIVE_WRITE, timeout_sec=timeout_sec)
+                if not ok2:
+                    self.release_all_locks(agent_id, deregister_active=True)
+                    return (False, infer_calls, cache_replayed)
+                staged = self.pop_staged_writes(agent_id)
+                commit_fn(step1_resource_id, step2_resource_id, staged, infer_out)
+                self.release_all_locks(agent_id, deregister_active=True)
+                return (True, infer_calls, cache_replayed)
+            except OutOfFootprintException as exc:
+                # Unwind to Step 1 after expanding footprint F(T_i) <- F(T_i) U {req_partition}
+                self.expand_footprint_and_reregister(agent_id, exc.req_partition)
+
     def release_all_locks(self, agent_id: str, deregister_active: bool = False):
         r"""
         Releases all locks held by agent_id, removes incoming wait edges in G_wait(t),
-        reverts effective priority to base epistemic priority, and signals waiting agents
-        ordered by live dynamic urgency \tilde{\Pi}_k^{eff}(t) (or static \Pi_k^{\max} in ablation).
+        reverts effective priority to base epistemic priority, refreshes age-dependent
+        waiter scores and T_sat promotions, and signals waiting agents ordered by live
+        dynamic urgency \tilde{\Pi}_k^{eff}(t) (or static \Pi_k^{\max} in ablation).
         """
         with self._mutex:
             held = self._held_resources.pop(agent_id, set())
@@ -526,6 +622,22 @@ class EPCPEngine:
                 self._effective_upper_tuples[agent_id] = agent_state.upper_envelope_tuple()
                 self._effective_dynamic_tuples[agent_id] = agent_state.dynamic_priority_tuple(elapsed_sec=elapsed)
 
+            # Refresh age-dependent dynamic priorities and check pending T_sat promotions for waiting agents
+            now_perf = time.perf_counter()
+            for aid in list(self._active_agents):
+                if aid == agent_id:
+                    continue
+                w_st = self._agents.get(aid)
+                if w_st:
+                    self._check_and_promote_senior_saturation(aid)
+                    w_elapsed = max(0.0, now_perf - w_st.start_time_sec)
+                    dyn_p = w_st.compute_epistemic_priority(elapsed_sec=w_elapsed)
+                    dyn_t = w_st.dynamic_priority_tuple(elapsed_sec=w_elapsed)
+                    if dyn_p > self._active_priorities.get(aid, 0.0):
+                        self._active_priorities[aid] = dyn_p
+                    if dyn_t > self._effective_dynamic_tuples.get(aid, (0, 0)):
+                        self._effective_dynamic_tuples[aid] = dyn_t
+
             # Wake waiting agents in descending order of live dynamic urgency \tilde{\Pi}_k^{eff}(t)
             # (or static upper-envelope \Pi_k^{\max} when use_live_dynamic_urgency is False)
             waiter_order = sorted(
@@ -539,3 +651,4 @@ class EPCPEngine:
             )
             for aid in waiter_order:
                 self._conditions[aid].notify_all()
+

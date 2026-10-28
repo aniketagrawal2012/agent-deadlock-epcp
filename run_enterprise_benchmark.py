@@ -12,10 +12,10 @@ Zero mocks. Executes:
      total 2-step in-lock reasoning delay, 800 tokens/step = 1,600 tokens/attempt) across
      S2PL, 2PL-Wait Promote, Wound-Wait, Wait-Die, OCC, Coarse Shard-Scoped C2PL, Canonical
      Ordered Locking, EPCP (Static Pi_max Only), and Full EPCP.
-  3. Regime 2B (Live Gemini Enterprise Agent Platform Supplement): Live multi-threaded evaluation
-     against Vertex AI `gemini-2.5-flash` on GCP project `aniket-personal` (K=10 concurrent agents,
-     50 2-step transactions) where Tokens_i(t) and H_i(t) are extracted from live API responses.
-  4. Renders 4 publication-grade figures into plots/ with 5-seed error bars and exact labels.
+    3. Regime 2B (Live Gemini Enterprise Agent Platform Supplement): Live multi-threaded evaluation
+       against Vertex AI `gemini-2.5-flash` on GCP project `<gcp-project-id>` (K=10 concurrent agents,
+       50 2-step transactions) where Tokens_i(t) and H_i(t) are extracted from live API responses.
+    4. Renders 4 publication-grade figures into plots/ with 5-seed error bars and exact labels.
 """
 
 from __future__ import annotations
@@ -229,14 +229,15 @@ def run_live_gemini_epcp_evaluation(
 ) -> Dict[str, Any]:
     """
     Executes a live multi-agent evaluation on Google Cloud Vertex AI (`gemini-2.5-flash`,
-    project_id='aniket-personal', location='global') comparing S2PL vs. EPCP across
+    project_id='<gcp-project-id>', location='global') comparing S2PL vs. EPCP across
     K=10 concurrent OS worker threads (50 2-step transactions = 100 live LLM calls per protocol),
     extracting real token counts and action entropy H_i(t) from live Gemini responses.
     """
     try:
         from google import genai
         from google.genai import types
-        client = genai.Client(vertexai=True, project="aniket-personal", location="global")
+        project_id = os.environ.get("GCP_PROJECT_ID", "<gcp-project-id>")
+        client = genai.Client(vertexai=True, project=project_id, location="global")
     except Exception as exc:
         print(f"[WARN] Live Gemini client unavailable ({exc}); skipping live endpoint supplement.")
         return {}
@@ -508,9 +509,9 @@ def render_publication_figures(
     ax3.set_xlabel("Transaction Execution Latency (Milliseconds, Log Scale)", fontsize=12, fontweight="bold", labelpad=10)
     ax3.set_ylabel("Cumulative Distribution Function (CDF)", fontsize=12, fontweight="bold", color="#202124")
     ax3.set_title(
-        "Figure 3: Regime 1 Transaction Latency CDF Across Pooled Concurrency Levels\n"
-        "EPCP Admits >=95% of Non-Conflicting Requests in <=3.3 ms While Bounding Admission Queueing",
-        fontsize=12.5, fontweight="bold", pad=15
+        "Figure 3: Regime 1 Transaction Latency CDF at Representative Concurrency K = 20\n"
+        "EPCP Admits >=95% of Requests in <=3.24 ms (Max 312.6 ms) vs. S2PL P95 114.72 ms (Max 214.5 ms)",
+        fontsize=12.0, fontweight="bold", pad=15
     )
     ax3.set_xscale("log")
     ax3.grid(True, linestyle="--", alpha=0.5)

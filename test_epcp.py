@@ -245,10 +245,161 @@ class TestEPCPConcurrency(unittest.TestCase):
             with self.assertRaises(OutOfFootprintException):
                 epcp.acquire_lock("ag_memo", "ITEM_Y", LockMode.EXCLUSIVE_WRITE)
             epcp.expand_footprint_and_reregister("ag_memo", p_y)
+            self.assertIn("ag_memo", epcp._active_agents)
             self.assertEqual(epcp._agents["ag_memo"].arrival_rank, orig_rank)
             self.assertTrue(epcp.acquire_lock("ag_memo", "ITEM_Y", LockMode.EXCLUSIVE_WRITE))
             epcp.release_all_locks("ag_memo", deregister_active=True)
 
+    def test_08_dynamic_footprint_recovery_helper_cache_hit_and_miss(self):
+        """
+        Verify execute_with_dynamic_footprint_recovery handles out-of-footprint Step-2
+        discovery by rolling back staged writes, expanding F(T_i), re-acquiring Step-1 lock,
+        and replaying SHA-256 memoized inference on cache hit (or re-evaluating on state drift).
+        """
+        epcp = EPCPEngine(enforce_strict_footprint=True)
+        # Find two resource keys mapping to distinct 64-bit partitions
+        res_a = "ACC_001"
+        p_a = partition_for_resource(res_a)
+        res_b = "ITEM_001"
+        idx = 1
+        while partition_for_resource(res_b) == p_a:
+            idx += 1
+            res_b = f"ITEM_{idx:03d}"
+        p_b = partition_for_resource(res_b)
+
+        # Case 1: Unmodified R_a during expansion -> SHA-256 digest hits (1 inference call total)
+        st1 = AgentEpistemicState(
+            agent_id="ag_recover_hit",
+            task_depth=2,
+            accumulated_cost_omega=20.0,
+            epistemic_entropy_h=0.3,
+            declared_partitions={p_a},
+        )
+        epcp.register_agent(st1, footprint_partitions={p_a})
+        row_store = {res_a: {"AccountId": res_a, "Balance": 5000.0, "Version": 1}}
+        committed_log = []
+
+        ok, infer_calls, replayed = epcp.execute_with_dynamic_footprint_recovery(
+            agent_id="ag_recover_hit",
+            step1_resource_id=res_a,
+            read_step1_state_fn=lambda r: dict(row_store[r]),
+            step1_infer_fn=lambda state: {"target_item": res_b, "debit": 100.0, "ver": state["Version"]},
+            discover_step2_resource_fn=lambda out: out["target_item"],
+            commit_fn=lambda r1, r2, staged, out: committed_log.append((r1, r2, len(staged), out["ver"])),
+        )
+        self.assertTrue(ok)
+        self.assertEqual(infer_calls, 1)
+        self.assertTrue(replayed)
+        self.assertIn(p_b, epcp._agents["ag_recover_hit"].declared_partitions)
+        self.assertEqual(committed_log, [(res_a, res_b, 1, 1)])
+
+        # Case 2: Concurrent mutation to R_a during expansion -> SHA-256 digest misses (2 inference calls)
+        st2 = AgentEpistemicState(
+            agent_id="ag_recover_miss",
+            task_depth=2,
+            accumulated_cost_omega=20.0,
+            epistemic_entropy_h=0.3,
+            declared_partitions={p_a},
+        )
+        epcp.register_agent(st2, footprint_partitions={p_a})
+        read_counter = {"count": 0}
+
+        def read_with_drift(r: str):
+            read_counter["count"] += 1
+            if read_counter["count"] == 1:
+                return {"AccountId": r, "Balance": 5000.0, "Version": 1}
+            return {"AccountId": r, "Balance": 4800.0, "Version": 2}
+
+        ok2, infer_calls2, replayed2 = epcp.execute_with_dynamic_footprint_recovery(
+            agent_id="ag_recover_miss",
+            step1_resource_id=res_a,
+            read_step1_state_fn=read_with_drift,
+            step1_infer_fn=lambda state: {"target_item": res_b, "debit": 100.0, "ver": state["Version"]},
+            discover_step2_resource_fn=lambda out: out["target_item"],
+            commit_fn=lambda r1, r2, staged, out: committed_log.append((r1, r2, len(staged), out["ver"])),
+        )
+        self.assertTrue(ok2)
+        self.assertEqual(infer_calls2, 2)
+        self.assertFalse(replayed2)
+        self.assertEqual(committed_log[-1], (res_a, res_b, 1, 2))
+
+    def test_09_wait_graph_saturation_propagation_and_bridge_gating(self):
+        """Verify Theorem 3 T_sat promotion propagation along G_wait and multi-partition bridge gating."""
+        epcp = EPCPEngine(enforce_strict_footprint=True)
+        res_a = "ACC_001"
+        p_a = partition_for_resource(res_a)
+        res_b = "ITEM_001"
+        idx = 1
+        while partition_for_resource(res_b) == p_a:
+            idx += 1
+            res_b = f"ITEM_{idx:03d}"
+        p_b = partition_for_resource(res_b)
+
+        # Low-priority holder currently owns res_a in partition p_a
+        st_holder = AgentEpistemicState(
+            agent_id="ag_holder",
+            task_depth=1,
+            accumulated_cost_omega=1.0,
+            epistemic_entropy_h=0.9,
+            declared_partitions={p_a},
+        )
+        # Bridge agent declaring {p_a, p_b} that starts 40ms before T_SAT_SEC so it crosses T_SAT_SEC while waiting
+        st_bridge = AgentEpistemicState(
+            agent_id="ag_bridge",
+            task_depth=1,
+            accumulated_cost_omega=2.0,
+            epistemic_entropy_h=0.5,
+            start_time_sec=time.perf_counter() - (T_SAT_SEC - 0.04),
+            declared_partitions={p_a, p_b},
+        )
+        # Newly arriving lower-priority single-partition agent on p_b
+        st_barger = AgentEpistemicState(
+            agent_id="ag_barger",
+            task_depth=1,
+            accumulated_cost_omega=1.0,
+            epistemic_entropy_h=0.9,
+            declared_partitions={p_b},
+        )
+
+        epcp.register_agent(st_holder, footprint_partitions={p_a})
+        epcp.register_agent(st_bridge, footprint_partitions={p_a, p_b})
+        epcp.register_agent(st_barger, footprint_partitions={p_b})
+
+        self.assertTrue(epcp.acquire_lock("ag_holder", res_a, LockMode.EXCLUSIVE_WRITE))
+
+        bridge_acquired_a = threading.Event()
+
+        def bridge_worker():
+            if epcp.acquire_lock("ag_bridge", res_a, LockMode.EXCLUSIVE_WRITE, timeout_sec=1.5):
+                bridge_acquired_a.set()
+                epcp.acquire_lock("ag_bridge", res_b, LockMode.EXCLUSIVE_WRITE, timeout_sec=1.5)
+                epcp.release_all_locks("ag_bridge")
+
+        t_bridge = threading.Thread(target=bridge_worker)
+        t_bridge.start()
+
+        # Wait long enough for ag_bridge to enter G_wait and cross T_SAT_SEC (within ~60ms)
+        time.sleep(0.08)
+
+        with epcp._mutex:
+            # Verify ag_bridge was promoted to senior saturation and propagated to ag_holder
+            self.assertTrue(epcp._agents["ag_bridge"].promoted_saturated)
+            self.assertGreaterEqual(
+                epcp._effective_upper_tuples["ag_holder"],
+                epcp._agents["ag_bridge"].upper_envelope_tuple(),
+            )
+            # Verify intersecting ceiling on {p_b} for ag_barger sees queued ag_bridge's senior ceiling
+            ceil_for_barger, blocker, all_blockers = epcp._get_intersecting_ceiling_excluding("ag_barger", res_b)
+            self.assertGreaterEqual(ceil_for_barger, epcp._agents["ag_bridge"].compute_upper_envelope_priority())
+            self.assertEqual(blocker, "ag_holder")
+            self.assertIn("ag_holder", all_blockers)
+
+        epcp.release_all_locks("ag_holder")
+        t_bridge.join(timeout=2.0)
+        self.assertTrue(bridge_acquired_a.is_set())
+
 
 if __name__ == "__main__":
     unittest.main()
+
+
