@@ -419,3 +419,55 @@ class CoarseShardC2PLManager:
                 if self._shard_holders.get(s) == agent_id:
                     del self._shard_holders[s]
             self._cond.notify_all()
+
+
+class FineGrainedPartitionC2PLManager(CoarseShardC2PLManager):
+    r"""
+    Fine-Grained 64-Partition Conservative 2PL (Partition-C2PL, B_part = 64) [Bernstein et al. 1987]:
+    Uses the same 64-partition ADK intent routing footprint as EPCP, acquiring all declared
+    partitions in F(T_i) atomically upfront in FIFO order without epistemic priority inheritance
+    or live dynamic urgency \tilde{\Pi}_i^{eff}(t).
+    """
+
+    def __init__(self, num_partitions: int = 64):
+        super().__init__(num_shards=num_partitions)
+
+
+class CanonicalPartitionOrderedManager:
+    """
+    64-Partition Canonical Ordered Locking (B_part = 64):
+    Acquires the declared 64-partition ADK intent footprint F(T_i) sequentially in canonical
+    ascending bucket-ID order (min F(T_i) < max F(T_i)) prior to Step-1 inference, eliminating
+    deadlocks and avoiding speculative discovery pre-passes without epistemic priority scheduling.
+    """
+
+    def __init__(self, num_partitions: int = 64):
+        self._mutex = threading.RLock()
+        self.num_partitions = num_partitions
+        self._part_holders: Dict[int, str] = {}
+        self._held_parts: Dict[str, Set[int]] = {}
+        self._cond = threading.Condition(self._mutex)
+
+    def acquire_ordered_partitions(self, agent_id: str, resources: List[str], timeout_sec: float = 5.0) -> bool:
+        ordered_parts = sorted({partition_for_resource(r, self.num_partitions) for r in resources})
+        with self._mutex:
+            start_time = time.time()
+            for p in ordered_parts:
+                while self._part_holders.get(p) not in (None, agent_id):
+                    elapsed = time.time() - start_time
+                    remaining = timeout_sec - elapsed
+                    if remaining <= 0:
+                        self.release_all_locks(agent_id)
+                        return False
+                    self._cond.wait(timeout=remaining)
+                self._part_holders[p] = agent_id
+                self._held_parts.setdefault(agent_id, set()).add(p)
+            return True
+
+    def release_all_locks(self, agent_id: str):
+        with self._mutex:
+            for p in self._held_parts.pop(agent_id, set()):
+                if self._part_holders.get(p) == agent_id:
+                    del self._part_holders[p]
+            self._cond.notify_all()
+

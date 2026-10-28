@@ -398,6 +398,45 @@ class TestEPCPConcurrency(unittest.TestCase):
         t_bridge.join(timeout=2.0)
         self.assertTrue(bridge_acquired_a.is_set())
 
+    def test_10_64partition_baselines_and_handoff_reservation(self):
+        """Verify 64-partition C2PL/Canonical Ordered baselines, priority reset on RESTART, and handoff reservation."""
+        from baseline_s2pl import FineGrainedPartitionC2PLManager, CanonicalPartitionOrderedManager
+
+        p_c2pl = FineGrainedPartitionC2PLManager(num_partitions=64)
+        self.assertTrue(p_c2pl.acquire_all_shards("ag1", ["ACC_001", "ITEM_002"]))
+        p_c2pl.release_all_locks("ag1")
+
+        p_ord = CanonicalPartitionOrderedManager(num_partitions=64)
+        self.assertTrue(p_ord.acquire_ordered_partitions("ag1", ["ITEM_002", "ACC_001"]))
+        p_ord.release_all_locks("ag1")
+
+        # Verify inherited priority is reset upon expand_footprint_and_reregister (#7, #8)
+        epcp = EPCPEngine(enforce_strict_footprint=True, senior_saturation_sec=5.0)
+        p_a = partition_for_resource("ACC_001")
+        p_b = (p_a + 1) % 64
+        st_low = AgentEpistemicState(agent_id="low", task_depth=1, accumulated_cost_omega=1.0, declared_partitions={p_a})
+        st_high = AgentEpistemicState(agent_id="high", task_depth=4, accumulated_cost_omega=500.0, declared_partitions={p_a})
+        epcp.register_agent(st_low, footprint_partitions={p_a})
+        epcp.register_agent(st_high, footprint_partitions={p_a})
+
+        self.assertTrue(epcp.acquire_lock("low", "ACC_001", LockMode.EXCLUSIVE_WRITE))
+        base_low_up = epcp._agents["low"].upper_envelope_tuple()
+
+        # Simulate high waiting on low and elevating low's effective upper tuple
+        with epcp._mutex:
+            epcp._wait_edges["high"] = {"low"}
+            epcp._waiting_agents.add("high")
+            epcp._propagate_transitive_inheritance("high")
+            self.assertGreater(epcp._effective_upper_tuples["low"], base_low_up)
+
+        # When low expands footprint and restarts, its inherited priority resets to base_low_up
+        epcp.expand_footprint_and_reregister("low", p_b)
+        with epcp._mutex:
+            self.assertEqual(epcp._effective_upper_tuples["low"], base_low_up)
+            # And because high is still in _waiting_agents (woken in handoff window), low sees high's ceiling reservation (#19)
+            ceil_val, _, _ = epcp._get_intersecting_ceiling_excluding("low", "ACC_001")
+            self.assertGreaterEqual(ceil_val, epcp._active_priorities["low"])
+
 
 if __name__ == "__main__":
     unittest.main()
